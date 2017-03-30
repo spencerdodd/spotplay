@@ -8,3 +8,9 @@ class Song:
 
 	def get_search_string(self):
 		return "{} {}".format(self.name, self.artist)
+
+	def __hash__(self):
+		return hash(self.name + self.artist + self.album)
+
+	def __eq__(self, other):
+		return self.name == other.name and self.artist == other.artist and self.album == other.album

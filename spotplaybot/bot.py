@@ -56,24 +56,21 @@ class SpotPlayBot:
 
 		print ("Successfully authorized")
 
-		self.subreddit = self.reddit.subreddit(config.subreddit)
+		self.subreddits = []
 
-		print ("Connected to subreddit {}".format(config.subreddit))
+		for subreddit in config.subreddits:
+			self.subreddits.append(self.reddit.subreddit(subreddit))
+			print ("Connected to subreddit {}".format(subreddit))
 
-	def get_spotify_posts(self):
+	def get_spotify_posts(self, subreddit):
 		print ("Searching for spotify playlists to re-host")
 		posts_to_scrape = []
 
-		for idx, submission in enumerate(self.subreddit.hot(limit=25)):
+		for idx, submission in enumerate(subreddit.hot(limit=25)):
 			if "spotify" and "playlist" in submission.url:
 				submission.comments.replace_more()
-				comments = submission.comments.list()
-				previously_processed = False
-				for comment in comments:
-					if self.previously_processed(comment):
-						previously_processed = True
 
-				if not previously_processed:
+				if not self.previously_processed_submission(submission):
 					posts_to_scrape.append(submission)
 
 		if len(posts_to_scrape) == 0:
@@ -142,13 +139,53 @@ class SpotPlayBot:
 		lines = comment_text.split("\n\n")
 		parsed_songs = []
 
-		for line in lines:
-			song_info = line.split("-")
-			if len(song_info) > 1:
-				parsed_song = Song(song_info[0], song_info[1])
-				parsed_songs.append(parsed_song)
+		for idx, dirty_line in enumerate(lines):
+			line = dirty_line.encode('utf-8')
+			if "spotify.com" in line:
+				pass
+				# parsed_song = self.spotify_convert_link_to_song(line)
+				# parsed_songs.append(parsed_song)
+
+			elif "play.google.com" in line:
+				pass
+				# parsed_song = self.google_convert_link_to_song(line)
+				# parsed_songs.append(parsed_song)
+
+			elif "youtube.com" in line:
+				pass
+				# parsed_song = self.youtube_convert_link_to_song(line)
+				# parsed_songs.append(parsed_song)
+
+			else:
+				if len(line.split("-")) == 2 and line[line.index("-")-1] == " " and line[line.index("-")+1] == " ":
+					# TODO crashes with ascii error
+					# print "Processing line {} | {} | from comment |{}|".format(idx, line, comment_text)
+					song_info = line.split("-")
+					parsed_song = Song(song_info[0], song_info[1])
+					parsed_songs.append(parsed_song)
 
 		return parsed_songs
+
+	def parse_songs_from_submission(self, submission):
+		submission.comments.replace_more()
+		songs = []
+
+		for comment in submission.comments.list():
+			songs += self.parse_songs_from_comment(comment.body)
+
+		return songs
+
+	# TODO
+	def spotify_convert_link_to_song(self, link):
+		pass
+
+	# TODO
+	def google_convert_link_to_song(self, link):
+		pass
+
+	# TODO
+	def youtube_convert_link_to_song(self, link):
+		pass
 
 	def post_message_in_thread(self, post, share_link, type="submission"):
 		if type == "submission":
@@ -166,6 +203,9 @@ class SpotPlayBot:
 			post_text = "Here is an automatically-generated Google Play Music playlist of the songs in this thread" \
 						"\n\n[Playlist]({})\n\n{}".format(share_link, config.signature)
 			post.reply(post_text)
+
+	def remove_repeats(self, song_list):
+		return list(set(song_list))
 
 	# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 	# context methods
@@ -186,29 +226,37 @@ class SpotPlayBot:
 
 	def get_parent_comment_links(self, comment):
 		print ("Converting links in parent comment")
-		if hasattr(comment, "replies"):
-			songs = self.parse_songs_from_comment(comment.parent().body)
+		comment_parent = comment.parent()
+		if hasattr(comment_parent, "replies"):
+			songs = self.parse_songs_from_comment(comment_parent.body)
+			songs = self.remove_repeats(songs)
 			share_link = self.google_create_playlist(songs)
 			self.post_message_in_thread(comment, share_link, type="comment")
 
 			print ("Complete!")
-
 		else:
-			print ("Converting links from full submission")
-			# songs = self.parse_songs_from_submission(comment.submission)
-			pass
+			print ("Cannot convert a non-comment parent")
+
+	def get_all_thread_links(self, comment):
+		print ("Converting links from full submission")
+		songs = self.parse_songs_from_submission(comment.submission)
+		songs = self.remove_repeats(songs)
+		share_link = self.google_create_playlist(songs)
+		self.post_message_in_thread(comment, share_link, type="thread")
+
+		print ("Complete")
 
 	# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 	# base methods
 	# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-	def process_spotify_threads(self):
-		for post in self.get_spotify_posts():
+	def process_spotify_threads(self, subreddit):
+		for post in self.get_spotify_posts(subreddit):
 			post_playlist = self.spotify_list_playlist(post.url)
 			share_link = self.google_create_playlist(post_playlist)
 			self.post_message_in_thread(post, share_link)
 
-	def process_context_calls(self):
+	def process_context_calls(self, subreddit):
 		"""
 		Scrapes comments of threads in given subreddit for mentions that fit the defined functionality. If there is
 		a mention, then process that functionality.
@@ -221,19 +269,27 @@ class SpotPlayBot:
 		context_calls = {
 			"{} uptime".format(config.context_clue): self.get_uptime,
 			"{} convert links".format(config.context_clue): self.get_parent_comment_links,
-			# "{} convert thread".format(config.context_clue):self.convert_thread,
+			"{} convert thread".format(config.context_clue): self.get_all_thread_links,
 			# "{} convert song".format(config.context_clue): self.convert_song
 		}
-		for submission in self.subreddit.hot(limit=25):
+		for submission in subreddit.hot(limit=25):
 			submission.comments.replace_more()
 			for comment in submission.comments.list():
 				for context_call in context_calls.keys():
-					if context_call in comment.body and not self.previously_processed(comment):
+					if context_call in comment.body and not self.previously_processed_comment(comment):
 						context_calls[context_call](comment)
 
 		print ("No more context calls found")
 
-	def previously_processed(self, comment):
+	def previously_processed_submission(self, submission):
+		previously_processed = False
+		for comment in submission.comments:
+			if config.signature in comment.body:
+				previously_processed = True
+
+		return previously_processed
+
+	def previously_processed_comment(self, comment):
 		previously_processed = False
 		for second_level_comment in comment.replies:
 			if config.signature in second_level_comment.body:
@@ -246,9 +302,10 @@ class SpotPlayBot:
 
 	def run(self):
 		while True:
-			self.process_spotify_threads()
-			self.process_context_calls()
-			print ("Complete!")
+			for subreddit in self.subreddits:
+				self.process_spotify_threads(subreddit)
+				self.process_context_calls(subreddit)
+				print ("Processing /r/{} Complete!".format(subreddit))
 
 			time.sleep(10)
 			"""
