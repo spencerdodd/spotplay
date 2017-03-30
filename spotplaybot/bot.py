@@ -5,6 +5,7 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOauthError
 from gmusicapi import Mobileclient
 from googleapiclient.discovery import build
+from twilio.rest import TwilioRestClient
 
 # Internal Libs
 import config
@@ -65,13 +66,23 @@ class SpotPlayBot:
 		except Exception as e:
 			raise Exception("Authorization failed! (youtube)")
 
+		# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+		# twilio
+		# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+		self.twilio_client = TwilioRestClient(config.twilio_account_sid, config.twilio_auth_token)
+
 		print ("Successfully authorized")
 
+		# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+		# load subreddits
+		# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 		self.subreddits = []
 
 		for subreddit in config.subreddits:
 			self.subreddits.append(self.reddit.subreddit(subreddit))
 			print ("Connected to subreddit {}".format(subreddit))
+
+		# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 	def get_spotify_posts(self, subreddit):
 		print ("Searching for spotify playlists to re-host")
@@ -342,9 +353,6 @@ class SpotPlayBot:
 
 		return previously_processed
 
-	def restart(self):
-		self.__init__()
-
 	def run(self):
 		while True:
 			try:
@@ -356,7 +364,11 @@ class SpotPlayBot:
 				time.sleep(10)
 
 			except Exception as e:
-				print ("Bot is kill.")
+				message_body = "Bot is kill."
+				message = self.twilio_client.messages.create(to=config.twilio_to_number,
+															 from_=config.twilio_from_number,
+															 body="{}".format(message_body))
+				print message_body
 				raise
 
 
