@@ -4,6 +4,7 @@ import time
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOauthError
 from gmusicapi import Mobileclient
+from googleapiclient.discovery import build
 
 # Internal Libs
 import config
@@ -53,6 +54,16 @@ class SpotPlayBot:
 			self.spotify_api = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 		except SpotifyOauthError:
 			raise Exception("Authorization failed! (spotify)")
+
+		# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+		# youtube
+		# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+		self.youtube_api = build(config.youtube_api_service_name, config.youtube_api_version, developerKey=config.youtube_api_key)
+		try:
+			# TODO
+			pass
+		except Exception as e:
+			raise Exception("Authorization failed! (youtube)")
 
 		print ("Successfully authorized")
 
@@ -151,20 +162,37 @@ class SpotPlayBot:
 				# parsed_song = self.google_convert_link_to_song(line)
 				# parsed_songs.append(parsed_song)
 
-			elif "youtube.com" in line:
-				pass
-				# parsed_song = self.youtube_convert_link_to_song(line)
-				# parsed_songs.append(parsed_song)
+			elif "youtube.com" in line and not "playlist" in line:
+				parsed_youtube_link = self.parse_youtube_link_from_line(line)
+				parsed_song = self.youtube_convert_link_to_song(parsed_youtube_link)
+				if parsed_song.name != "":
+					parsed_songs.append(parsed_song)
 
 			else:
 				if len(line.split("-")) == 2 and line[line.index("-")-1] == " " and line[line.index("-")+1] == " ":
-					# TODO crashes with ascii error
-					# print "Processing line {} | {} | from comment |{}|".format(idx, line, comment_text)
+					print "Processing line {} | {} |".format(idx, line)
 					song_info = line.split("-")
 					parsed_song = Song(song_info[0], song_info[1])
 					parsed_songs.append(parsed_song)
 
 		return parsed_songs
+
+	# TODO jesus christ write a regex
+	def parse_youtube_link_from_line(self, comment_link):
+		split_link = comment_link.split("](")
+
+		if len(split_link) == 1:
+			if ")" in split_link:
+				right_bound = split_link.index(")")
+				return split_link[0][:right_bound]
+			else:
+				return split_link[0]
+		else:
+			if ")" in split_link:
+				right_bound = split_link.index(")")
+				return split_link[1][:right_bound]
+			else:
+				return split_link[1][:-1]
 
 	def parse_songs_from_submission(self, submission):
 		submission.comments.replace_more()
@@ -183,9 +211,26 @@ class SpotPlayBot:
 	def google_convert_link_to_song(self, link):
 		pass
 
-	# TODO
 	def youtube_convert_link_to_song(self, link):
-		pass
+		print ("link: {}".format(link))
+		video_id = link.split("?v=")[1]
+		video_info = self.youtube_api.videos().list(
+			part="snippet,localizations",
+			id=video_id
+  		).execute()
+		print video_info
+		try:
+			video_title = video_info["items"][0]["snippet"]["title"]
+			split_info = video_title.split("-")
+			if len(split_info) == 1:
+				parsed_song = Song(split_info[0], "")					# just make it the song
+			else:
+				parsed_song = Song(split_info[0], split_info[1])
+
+			return parsed_song
+		except:
+			# no results on the search
+			return Song("","","")
 
 	def post_message_in_thread(self, post, share_link, type="submission"):
 		if type == "submission":
@@ -302,24 +347,17 @@ class SpotPlayBot:
 
 	def run(self):
 		while True:
-			for subreddit in self.subreddits:
-				self.process_spotify_threads(subreddit)
-				self.process_context_calls(subreddit)
-				print ("Processing /r/{} Complete!".format(subreddit))
-
-			time.sleep(10)
-			"""
 			try:
-				self.process_spotify_threads()
-				self.process_context_calls()
-				print ("Complete!")
+				for subreddit in self.subreddits:
+					self.process_spotify_threads(subreddit)
+					self.process_context_calls(subreddit)
+					print ("Processing /r/{} Complete!".format(subreddit))
 
 				time.sleep(10)
 
 			except Exception as e:
-				print ("Base error encountered, restarting bot\n{}".format(str(e)))
-				self.restart()
-			"""
+				print ("Bot is kill.")
+				raise
 
 
 def main():
