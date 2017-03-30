@@ -135,7 +135,6 @@ class SpotPlayBot:
 				post_playlist = self.spotify_list_playlist(post.url)
 				share_link = self.google_create_playlist(post_playlist)
 				self.post_message_in_thread(post, share_link)
-				self.post_message_in_thread(share_link)
 
 				print ("Complete!")
 
