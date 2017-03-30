@@ -1,16 +1,17 @@
 # External Libs
-import praw
 import time
-import spotipy
 import traceback
-from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOauthError
+
+import praw
+import spotipy
 from gmusicapi import Mobileclient
 from googleapiclient.discovery import build
+from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOauthError
 from twilio.rest import TwilioRestClient
 
-# Internal Libs
-import config
 from song import Song
+# Internal Libs
+from spotplaybot import config
 
 oauth_url = "https://oauth.reddit.com"
 reddit_url = "https://www.reddit.com"
