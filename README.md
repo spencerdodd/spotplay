@@ -26,6 +26,10 @@ Google Play Music playlist.
 
 ## Next Steps
 
+#### Convert individual Spotify songs or albums in the same manner
+
+Shouldn't be limited to playlists
+
 #### Creation of Spotify Playlists from GPlayMusic and Other Sources
 
 Because just because I don't like Spotify doesn't mean that everyone feels that way...

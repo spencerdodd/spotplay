@@ -11,7 +11,7 @@ from twilio.rest import TwilioRestClient
 
 from song import Song
 # Internal Libs
-from spotplaybot import config
+import config
 
 oauth_url = "https://oauth.reddit.com"
 reddit_url = "https://www.reddit.com"
@@ -79,6 +79,7 @@ class SpotPlayBot:
 		# load subreddits
 		# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 		self.subreddits = []
+		self.current_subreddit = ""
 
 		for subreddit in config.subreddits:
 			self.subreddits.append(self.reddit.subreddit(subreddit))
@@ -90,7 +91,7 @@ class SpotPlayBot:
 		print ("Searching for spotify playlists to re-host")
 		posts_to_scrape = []
 
-		for idx, submission in enumerate(subreddit.hot(limit=25)):
+		for idx, submission in enumerate(subreddit.hot(limit=config.post_threshold)):
 			if "spotify" and "playlist" in submission.url:
 				submission.comments.replace_more()
 
@@ -175,7 +176,7 @@ class SpotPlayBot:
 				# parsed_song = self.google_convert_link_to_song(line)
 				# parsed_songs.append(parsed_song)
 
-			elif "youtube.com" in line and not "playlist" in line:
+			elif "youtube.com" in line and not "playlist" and not "channel" in line:
 				parsed_youtube_link = self.parse_youtube_link_from_line(line)
 				parsed_song = self.youtube_convert_link_to_song(parsed_youtube_link)
 				if parsed_song.name != "":
@@ -330,7 +331,7 @@ class SpotPlayBot:
 			"{} convert thread".format(config.context_clue): self.get_all_thread_links,
 			# "{} convert song".format(config.context_clue): self.convert_song
 		}
-		for submission in subreddit.hot(limit=25):
+		for submission in subreddit.hot(limit=config.post_threshold):
 			submission.comments.replace_more()
 			for comment in submission.comments.list():
 				for context_call in context_calls.keys():
@@ -359,12 +360,12 @@ class SpotPlayBot:
 		while True:
 			try:
 				for subreddit in self.subreddits:
+					self.current_subreddit = config.subreddits[self.subreddits.index(subreddit)]
 					self.process_spotify_threads(subreddit)
 					self.process_context_calls(subreddit)
 					print ("Processing /r/{} Complete!".format(subreddit))
 
 				time.sleep(10)
-				raise Exception("test kill")
 
 			except Exception as e:
 				message_body = "Bot is kill.\n{}".format(traceback.format_exc(e))
