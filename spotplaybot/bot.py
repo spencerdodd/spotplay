@@ -154,7 +154,7 @@ class SpotPlayBot:
 		uptime_hours = uptime_seconds / 60
 		uptime_days = uptime_hours / 24
 
-		message = "**Uptime Statistics for spotplay-bot**\n\nspotplay-bot has been up for:\n\n" \
+		message = "**Uptime Statistics for spotplaybot**\n\nspotplaybot has been up for:\n\n" \
 				  "{} hours\n\n{}".format(uptime_hours, config.signature)
 
 		comment.reply(message)

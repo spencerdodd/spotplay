@@ -1,4 +1,4 @@
-# SpotPlay
+# SpotPlayBot
 
 This project is a bot written in python that scrapes posts in
 [reddit.com/r/electronicmusic](https://reddit.com/r/electronicmusic) searching for Spotify
@@ -19,7 +19,7 @@ playlist compilation
 
 #### Context-dependent Functionality
 
-Integrate a comment-cue that will trigger functions. i.e. ("spotplay convert thread") that would read all links in the
+Integrate a comment-cue that will trigger functions. i.e. ("spotplaybot convert thread") that would read all links in the
 thread and convert/compile them into Spotify/GPlayMusic playlists.
 
 #### Creation of Spotify Playlists from GPlayMusic and Other Sources
