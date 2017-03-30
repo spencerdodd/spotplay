@@ -10,18 +10,27 @@ Google Play Music playlist.
 - [Spotipy](https://github.com/plamere/spotipy) for Spotify API interaction
 - [gmusicapi](https://github.com/simon-weber/gmusicapi) as an unofficial Google Play Music API
 
+## Functionality
+
+- Youtube link conversion to google play music
+
+- Text in format ```Artist - Song``` conversion to google play music
+
+- Context-cued functionality
+
+```spotplaybot uptime``` to get the uptime of the bot in seconds
+
+```spotplaybot convert links``` to convert all links in the parent comment
+
+```spotplaybot convert thread``` to convert all links in the thread
+
 ## Next Steps
-
-#### Youtube to GPlayMusic Conversion Functionality
-
-Pretty self-explanatory. Work from straight links so that it can be used for parsing links in threads into a single
-playlist compilation
-
-#### Context-dependent Functionality
-
-Integrate a comment-cue that will trigger functions. i.e. ("spotplaybot convert thread") that would read all links in the
-thread and convert/compile them into Spotify/GPlayMusic playlists.
 
 #### Creation of Spotify Playlists from GPlayMusic and Other Sources
 
 Because just because I don't like Spotify doesn't mean that everyone feels that way...
+
+#### Improve searching on google play for songs
+
+A lot of songs are missed because the exact versions posted in the comment is not available on google play,
+or due to the fact that the search query is messed up by contextual surrounding text.
