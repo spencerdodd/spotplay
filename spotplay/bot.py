@@ -1,5 +1,6 @@
 # External Libs
 import praw
+import time
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOauthError
 from gmusicapi import Mobileclient
@@ -101,6 +102,15 @@ class SpotPlayBot:
 		print ("Making playlist {} public".format(playlist_title))
 		self.google_api.edit_playlist(new_playlist_id, public=True)
 
+		share_link = "https://play.google.com/music/playlist/"
+		for playlist in self.google_api.get_all_playlists():
+			if playlist["id"] == new_playlist_id:
+				share_link += playlist["shareToken"]
+
+		print ("Share link: {}".format(share_link))
+
+		return share_link
+
 	def get_song_from_search(self, song_to_search):
 		hits = self.google_api.search(song_to_search.get_search_string())["song_hits"]
 
@@ -110,10 +120,26 @@ class SpotPlayBot:
 		else:
 			return config.search_failure_string
 
+	def post_message_in_thread(self, post, share_link):
+		print ("Posting message to thread")
+		post_text = "Here is an automatically-generated Google Play Music playlist of the songs in the posted Spotify" \
+					" playlist\n\n[Playlist]({})\n\nI am a bot, this was performed automatically.\n" \
+					"If there is a problem with this post, please contact /u/aztechk\n\n*{}*\n\n" \
+					"---------------------\n\n" \
+					"^Source ^code: ^[Github]({})".format(share_link, config.signature, config.github_url)
+		post.reply(post_text)
+
 	def run(self):
-		for post in self.get_spotify_posts():
-			post_playlist = self.spotify_list_playlist(post.url)
-			self.google_create_playlist(post_playlist)
+		while True:
+			for post in self.get_spotify_posts():
+				post_playlist = self.spotify_list_playlist(post.url)
+				share_link = self.google_create_playlist(post_playlist)
+				self.post_message_in_thread(post, share_link)
+				self.post_message_in_thread(share_link)
+
+				print ("Complete!")
+
+			time.sleep(120)
 
 
 def main():
