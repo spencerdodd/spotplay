@@ -6,5 +6,5 @@ class Song:
 		self.artist = artist.encode('utf-8')
 		self.album = album.encode('utf-8')
 
-	def format_print(self):
-		print ("\n" + "-"*15 + "\nTitle: {}\nArtist: {}\nAlbum: {}\n".format(self.name, self.artist, self.album))
+	def get_search_string(self):
+		return "{} {}".format(self.name, self.artist)

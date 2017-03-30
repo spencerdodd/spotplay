@@ -50,7 +50,15 @@ class SpotPlayBot:
 
 		for submission in subreddit.hot(limit=10):
 			if "spotify" and "playlist" in submission.url:
-				posts_to_scrape.append(submission)
+				submission.comments.replace_more()
+				comments = submission.comments.list()
+				previously_processed = False
+				for comment in comments:
+					if config.signature in comment.body:
+						previously_processed = True
+
+				if not previously_processed:
+					posts_to_scrape.append(submission)
 
 		return posts_to_scrape
 
@@ -73,13 +81,39 @@ class SpotPlayBot:
 
 	def google_create_playlist(self, list_of_song_objects):
 		print ("Creating gplaymusic playlist")
-		pass
+		playlist_number = 0
+
+		for playlist in self.google_api.get_all_playlists():
+			if "spotplaybot" in playlist["name"]:
+				playlist_number += 1
+
+		playlist_title = "spotplaybot{}".format(playlist_number)
+		new_playlist_id = self.google_api.create_playlist(playlist_title)
+
+		for song in list_of_song_objects:
+			song_id = self.get_song_from_search(song)
+			if song_id != config.search_failure_string:
+				print ("Adding {}".format(song.get_search_string()))
+				self.google_api.add_songs_to_playlist(new_playlist_id,song_id)
+			else:
+				print ("Could not find {} in Google Play Music".format(song.get_search_string()))
+
+		print ("Making playlist {} public".format(playlist_title))
+		self.google_api.edit_playlist(new_playlist_id, public=True)
+
+	def get_song_from_search(self, song_to_search):
+		hits = self.google_api.search(song_to_search.get_search_string())["song_hits"]
+
+		if len(hits) > 0:
+			return hits[0]["track"]["storeId"]
+
+		else:
+			return config.search_failure_string
 
 	def run(self):
 		for post in self.get_spotify_posts():
 			post_playlist = self.spotify_list_playlist(post.url)
-			for song in post_playlist:
-				song.format_print()
+			self.google_create_playlist(post_playlist)
 
 
 def main():
