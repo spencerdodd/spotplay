@@ -93,7 +93,7 @@ class SpotPlayBot:
 			song_name = song["name"]
 			song_artist = song["artists"][0]["name"]
 			song_album = song["album"]["name"]
-			scraped_song = Song(song_name, song_artist, song_album)
+			scraped_song = Song(song_name, song_artist, album=song_album)
 			songs_by_name.append(scraped_song)
 
 		return songs_by_name
@@ -138,11 +138,34 @@ class SpotPlayBot:
 		else:
 			return config.search_failure_string
 
-	def post_message_in_thread(self, post, share_link):
-		print ("Posting message to thread")
-		post_text = "Here is an automatically-generated Google Play Music playlist of the songs in the posted Spotify" \
-					" playlist\n\n[Playlist]({})\n\n{}".format(share_link, config.signature)
-		post.reply(post_text)
+	def parse_songs_from_comment(self, comment_text):
+		lines = comment_text.split("\n\n")
+		parsed_songs = []
+
+		for line in lines:
+			song_info = line.split("-")
+			if len(song_info) > 1:
+				parsed_song = Song(song_info[0], song_info[1])
+				parsed_songs.append(parsed_song)
+
+		return parsed_songs
+
+	def post_message_in_thread(self, post, share_link, type="submission"):
+		if type == "submission":
+			print ("Posting message to thread")
+			post_text = "Here is an automatically-generated Google Play Music playlist of the songs in the posted Spotify" \
+						" playlist\n\n[Playlist]({})\n\n{}".format(share_link, config.signature)
+			post.reply(post_text)
+		elif type == "comment":
+			print ("Posting message to thread")
+			post_text = "Here is an automatically-generated Google Play Music playlist of the songs in the parent" \
+						" comment\n\n[Playlist]({})\n\n{}".format(share_link, config.signature)
+			post.reply(post_text)
+		elif type == "thread":
+			print ("Posting message to thread")
+			post_text = "Here is an automatically-generated Google Play Music playlist of the songs in this thread" \
+						"\n\n[Playlist]({})\n\n{}".format(share_link, config.signature)
+			post.reply(post_text)
 
 	# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 	# context methods
@@ -161,6 +184,20 @@ class SpotPlayBot:
 
 		print ("Comment posted!")
 
+	def get_parent_comment_links(self, comment):
+		print ("Converting links in parent comment")
+		if hasattr(comment, "replies"):
+			songs = self.parse_songs_from_comment(comment.parent().body)
+			share_link = self.google_create_playlist(songs)
+			self.post_message_in_thread(comment, share_link, type="comment")
+
+			print ("Complete!")
+
+		else:
+			print ("Converting links from full submission")
+			# songs = self.parse_songs_from_submission(comment.submission)
+			pass
+
 	# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 	# base methods
 	# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -171,20 +208,19 @@ class SpotPlayBot:
 			share_link = self.google_create_playlist(post_playlist)
 			self.post_message_in_thread(post, share_link)
 
-			print ("Complete!")
-
 	def process_context_calls(self):
 		"""
 		Scrapes comments of threads in given subreddit for mentions that fit the defined functionality. If there is
 		a mention, then process that functionality.
 			- uptime
 			- convert thread
-			- convert song
+			- link song
 		
 		"""
 		print ("Searching for context calls")
 		context_calls = {
 			"{} uptime".format(config.context_clue): self.get_uptime,
+			"{} convert links".format(config.context_clue): self.get_parent_comment_links,
 			# "{} convert thread".format(config.context_clue):self.convert_thread,
 			# "{} convert song".format(config.context_clue): self.convert_song
 		}
@@ -210,15 +246,23 @@ class SpotPlayBot:
 
 	def run(self):
 		while True:
+			self.process_spotify_threads()
+			self.process_context_calls()
+			print ("Complete!")
+
+			time.sleep(10)
+			"""
 			try:
 				self.process_spotify_threads()
 				self.process_context_calls()
+				print ("Complete!")
 
 				time.sleep(10)
 
 			except Exception as e:
 				print ("Base error encountered, restarting bot\n{}".format(str(e)))
 				self.restart()
+			"""
 
 
 def main():
