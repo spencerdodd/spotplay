@@ -2,6 +2,7 @@
 import praw
 import time
 import spotipy
+import traceback
 from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOauthError
 from gmusicapi import Mobileclient
 from googleapiclient.discovery import build
@@ -362,9 +363,10 @@ class SpotPlayBot:
 					print ("Processing /r/{} Complete!".format(subreddit))
 
 				time.sleep(10)
+				raise Exception("test kill")
 
 			except Exception as e:
-				message_body = "Bot is kill."
+				message_body = "Bot is kill.\n{}".format(traceback.format_exc(e))
 				message = self.twilio_client.messages.create(to=config.twilio_to_number,
 															 from_=config.twilio_from_number,
 															 body="{}".format(message_body))
