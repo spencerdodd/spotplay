@@ -1,22 +1,20 @@
-# External Libs
-import time
-import traceback
-
 import praw
+import time
+import config
 import spotipy
+import datetime
+import traceback
+from song import Song
 from gmusicapi import Mobileclient
+from twilio.rest import TwilioRestClient
 from googleapiclient.discovery import build
 from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOauthError
-from twilio.rest import TwilioRestClient
 
-from song import Song
-# Internal Libs
-import config
+# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+# Logging
+# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-oauth_url = "https://oauth.reddit.com"
-reddit_url = "https://www.reddit.com"
-short_reddit_url = "https://redd.it"
-
+# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 # TODO
 # 1. title of playlist should be the title of the submission that linked the playlist
@@ -88,7 +86,7 @@ class SpotPlayBot:
 		# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 	def get_spotify_posts(self, subreddit):
-		print ("Searching for spotify playlists to re-host")
+		print ("[/r/{}] Searching for spotify playlists to re-host".format(self.current_subreddit))
 		posts_to_scrape = []
 
 		for idx, submission in enumerate(subreddit.hot(limit=config.post_threshold)):
@@ -99,12 +97,12 @@ class SpotPlayBot:
 					posts_to_scrape.append(submission)
 
 		if len(posts_to_scrape) == 0:
-			print ("No new posts to re-host")
+			print ("[/r/{}] No new posts to re-host".format(self.current_subreddit))
 
 		return posts_to_scrape
 
 	def spotify_list_playlist(self, url_to_scrape):
-		print ("Scraping playlist at: {}".format(url_to_scrape))
+		print ("[/r/{}] Scraping playlist at: {}".format(self.current_subreddit, url_to_scrape))
 		user_id = url_to_scrape.split("user/")[1].split("/")[0]
 		playlist_id = url_to_scrape.split("/")[-1]
 		playlist = self.spotify_api.user_playlist_tracks(user_id, playlist_id)
@@ -121,25 +119,22 @@ class SpotPlayBot:
 		return songs_by_name
 
 	def google_create_playlist(self, list_of_song_objects):
-		print ("Creating gplaymusic playlist")
-		playlist_number = 0
+		print ("[/r/{}] Creating gplaymusic playlist".format(self.current_subreddit))
 
-		for playlist in self.google_api.get_all_playlists():
-			if "spotplaybot" in playlist["name"]:
-				playlist_number += 1
-
-		playlist_title = "spotplaybot{}".format(playlist_number)
+		cdt = datetime.datetime.today()
+		playlist_title = "[/r/{}] {}-{}-{}".format(self.current_subreddit, cdt.year, cdt.month, cdt.day)
 		new_playlist_id = self.google_api.create_playlist(playlist_title)
 
 		for song in list_of_song_objects:
 			song_id = self.get_song_from_search(song)
 			if song_id != config.search_failure_string:
-				print ("Adding {}".format(song.get_search_string()))
+				print ("[/r/{}] Adding {}".format(self.current_subreddit, song.get_search_string()))
 				self.google_api.add_songs_to_playlist(new_playlist_id, song_id)
 			else:
-				print ("Could not find {} in Google Play Music".format(song.get_search_string()))
+				print ("[/r/{}] Could not find {} in Google Play Music".format(self.current_subreddit,
+																			song.get_search_string()))
 
-		print ("Making playlist {} public".format(playlist_title))
+		print ("[/r/{}] Making playlist {} public".format(self.current_subreddit, playlist_title))
 		self.google_api.edit_playlist(new_playlist_id, public=True)
 
 		share_link = "https://play.google.com/music/playlist/"
@@ -147,7 +142,7 @@ class SpotPlayBot:
 			if playlist["id"] == new_playlist_id:
 				share_link += playlist["shareToken"]
 
-		print ("Share link: {}".format(share_link))
+		print ("[/r/{}] Share link: {}".format(self.current_subreddit, share_link))
 
 		return share_link
 
@@ -184,7 +179,7 @@ class SpotPlayBot:
 
 			else:
 				if len(line.split("-")) == 2 and line[line.index("-")-1] == " " and line[line.index("-")+1] == " ":
-					print "Processing line {} | {} |".format(idx, line)
+					print ("[/r/{}] Processing line {} | {} |".format(self.current_subreddit, idx, line))
 					song_info = line.split("-")
 					parsed_song = Song(song_info[0], song_info[1])
 					parsed_songs.append(parsed_song)
@@ -226,7 +221,7 @@ class SpotPlayBot:
 		pass
 
 	def youtube_convert_link_to_song(self, link):
-		print ("link: {}".format(link))
+		print ("[/r/{}] link: {}".format(self.current_subreddit, link))
 		video_id = link.split("?v=")[1]
 		video_info = self.youtube_api.videos().list(
 			part="snippet,localizations",
@@ -248,17 +243,17 @@ class SpotPlayBot:
 
 	def post_message_in_thread(self, post, share_link, type="submission"):
 		if type == "submission":
-			print ("Posting message to thread")
+			print ("[/r/{}] Posting message to thread".format(self.current_subreddit))
 			post_text = "Here is an automatically-generated Google Play Music playlist of the songs in the posted Spotify" \
 						" playlist\n\n[Playlist]({})\n\n{}".format(share_link, config.signature)
 			post.reply(post_text)
 		elif type == "comment":
-			print ("Posting message to thread")
+			print ("[/r/{}] Posting message to thread".format(self.current_subreddit))
 			post_text = "Here is an automatically-generated Google Play Music playlist of the songs in the parent" \
 						" comment\n\n[Playlist]({})\n\n{}".format(share_link, config.signature)
 			post.reply(post_text)
 		elif type == "thread":
-			print ("Posting message to thread")
+			print ("[/r/{}] Posting message to thread".format(self.current_subreddit))
 			post_text = "Here is an automatically-generated Google Play Music playlist of the songs in this thread" \
 						"\n\n[Playlist]({})\n\n{}".format(share_link, config.signature)
 			post.reply(post_text)
@@ -271,7 +266,7 @@ class SpotPlayBot:
 	# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 	def get_uptime(self, comment):
-		print ("Getting uptime and replying to comment")
+		print ("[/r/{}] Getting uptime and replying to comment".format(self.current_subreddit))
 		uptime_seconds = time.time() - self.start_time
 		uptime_hours = uptime_seconds / 60
 		uptime_days = uptime_hours / 24
@@ -281,10 +276,10 @@ class SpotPlayBot:
 
 		comment.reply(message)
 
-		print ("Comment posted!")
+		print ("[/r/{}] Comment posted!".format(self.current_subreddit))
 
 	def get_parent_comment_links(self, comment):
-		print ("Converting links in parent comment")
+		print ("[/r/{}] Converting links in parent comment".format(self.current_subreddit))
 		comment_parent = comment.parent()
 		if hasattr(comment_parent, "replies"):
 			songs = self.parse_songs_from_comment(comment_parent.body)
@@ -292,18 +287,18 @@ class SpotPlayBot:
 			share_link = self.google_create_playlist(songs)
 			self.post_message_in_thread(comment, share_link, type="comment")
 
-			print ("Complete!")
+			print ("[/r/{}] Complete!".format(self.current_subreddit))
 		else:
 			print ("Cannot convert a non-comment parent")
 
 	def get_all_thread_links(self, comment):
-		print ("Converting links from full submission")
+		print ("[/r/{}] Converting links from full submission".format(self.current_subreddit))
 		songs = self.parse_songs_from_submission(comment.submission)
 		songs = self.remove_repeats(songs)
 		share_link = self.google_create_playlist(songs)
 		self.post_message_in_thread(comment, share_link, type="thread")
 
-		print ("Complete")
+		print ("[/r/{}] Complete".format(self.current_subreddit))
 
 	# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 	# base methods
@@ -324,7 +319,7 @@ class SpotPlayBot:
 			- link song
 		
 		"""
-		print ("Searching for context calls")
+		print ("[/r/{}] Searching for context calls".format(self.current_subreddit))
 		context_calls = {
 			"{} uptime".format(config.context_clue): self.get_uptime,
 			"{} convert links".format(config.context_clue): self.get_parent_comment_links,
@@ -338,7 +333,7 @@ class SpotPlayBot:
 					if context_call in comment.body and not self.previously_processed_comment(comment):
 						context_calls[context_call](comment)
 
-		print ("No more context calls found")
+		print ("[/r/{}] No more context calls found".format(self.current_subreddit))
 
 	def previously_processed_submission(self, submission):
 		previously_processed = False
@@ -363,9 +358,7 @@ class SpotPlayBot:
 					self.current_subreddit = config.subreddits[self.subreddits.index(subreddit)]
 					self.process_spotify_threads(subreddit)
 					self.process_context_calls(subreddit)
-					print ("Processing /r/{} Complete!".format(subreddit))
-
-				time.sleep(10)
+					print ("[/r/{}] Processing Complete!".format(self.current_subreddit))
 
 			except Exception as e:
 				message_body = "Bot is kill.\n{}".format(traceback.format_exc(e))
