@@ -33,8 +33,6 @@ The bot also has functionality that can be triggered by comments that contain th
 
 ## Next Steps
 
-- Convert individual Spotify songs in the same manner
-
 - Creation of Spotify Playlists from GPlayMusic and Other Sources
 
 - Improve searching on google play for songs that are missed due to improper parsing from surrounding context when
