@@ -17,10 +17,11 @@ from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOauthError
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 # TODO
-# 1. Convert any link type (youtube, comment, spotify) in all of the contexts
-# 2. all sources 	-------> 		spotify
-# 3. all sources	------->		youtube
-# 4. Convert to desired playlist type in comment cue (youtube, spotify, googleplay)
+# 1. youtube playlists
+# 2. Convert any link type (youtube, comment, spotify) in all of the contexts
+# 3. all sources 	-------> 		spotify
+# 4. all sources	------->		youtube
+# 5. Convert to desired playlist type in comment cue (youtube, spotify, googleplay)
 
 
 class SpotPlayBot:
@@ -325,6 +326,10 @@ class SpotPlayBot:
 
 		return parsed_links
 
+	# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+	# methods to get songs from link types
+	# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
 	# TODO
 	def spotify_convert_link_to_song(self, link):
 		pass
@@ -435,7 +440,7 @@ class SpotPlayBot:
 
 		print ("[/r/{}] Complete".format(self.current_subreddit))
 
-	# TODO
+	# TODO add other link processing not just spotify
 	def convert_comment_link(self, comment):
 		print ("[/r/{}] Converting links from comment".format(self.current_subreddit))
 		links = self.parse_links_from_comment(comment.body)
@@ -487,6 +492,9 @@ class SpotPlayBot:
 
 		return previously_processed
 
+	def restart(self):
+		self.__init__()
+
 	def run(self):
 		while True:
 			try:
@@ -502,7 +510,14 @@ class SpotPlayBot:
 															 from_=config.twilio_from_number,
 															 body="{}".format(message_body))
 				print message_body
-				raise
+
+				message2_body = "Trying a restart"
+				message2 = self.twilio_client.messages.create(to=config.twilio_to_number,
+															 from_=config.twilio_from_number,
+															 body="{}".format(message2_body))
+				self.restart()
+
+
 
 
 def main():
