@@ -85,12 +85,28 @@ class SpotPlayBot:
 
 		# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-	def get_spotify_posts(self, subreddit):
+	def get_spotify_playlist_posts(self, subreddit):
 		print ("[/r/{}] Searching for spotify playlists to re-host".format(self.current_subreddit))
 		posts_to_scrape = []
 
 		for idx, submission in enumerate(subreddit.hot(limit=config.post_threshold)):
-			if "spotify" and "playlist" in submission.url:
+			if "spotify" in submission.url and "playlist" in submission.url:
+				submission.comments.replace_more()
+
+				if not self.previously_processed_submission(submission):
+					posts_to_scrape.append(submission)
+
+		if len(posts_to_scrape) == 0:
+			print ("[/r/{}] No new posts to re-host".format(self.current_subreddit))
+
+		return posts_to_scrape
+
+	def get_spotify_album_posts(self, subreddit):
+		print ("[/r/{}] Searching for spotify albums to re-host".format(self.current_subreddit))
+		posts_to_scrape = []
+
+		for idx, submission in enumerate(subreddit.hot(limit=config.post_threshold)):
+			if "spotify" in submission.url and "album" in submission.url:
 				submission.comments.replace_more()
 
 				if not self.previously_processed_submission(submission):
@@ -114,6 +130,29 @@ class SpotPlayBot:
 			song_artist = song["artists"][0]["name"]
 			song_album = song["album"]["name"]
 			scraped_song = Song(song_name, song_artist, album=song_album)
+			songs_by_name.append(scraped_song)
+
+		return songs_by_name
+
+	def spotify_list_album(self, url_to_scrape):
+		print ("[/r/{}] Scraping album at: {}".format(self.current_subreddit, url_to_scrape))
+		album_id = url_to_scrape.split("album/")[1]
+		album = self.spotify_api.album(album_id)
+		album_name = album["name"]
+		raw_artists = album["artists"]
+		album_artists = []
+		for artist in raw_artists:
+			artist_name = artist["name"]
+			album_artists.append(artist_name)
+		songs_by_name = []
+
+		for track in album["tracks"]["items"]:
+			track_name = track["name"]
+			track_artists = ""
+			for artist in album_artists:
+				track_artists += artist + " "
+
+			scraped_song = Song(track_name, track_artists, album=album_name)
 			songs_by_name.append(scraped_song)
 
 		return songs_by_name
@@ -251,6 +290,11 @@ class SpotPlayBot:
 			post_text = "Here is an automatically-generated Google Play Music playlist of the songs in this thread" \
 						"\n\n[Playlist]({})\n\n{}".format(share_link, config.signature)
 			post.reply(post_text)
+		elif type == "album":
+			print ("[/r/{}] Posting message to thread".format(self.current_subreddit))
+			post_text = "Here is an automatically-generated Google Play Music playlist of the songs in the posted Spotify" \
+						" album\n\n[Playlist]({})\n\n{}".format(share_link, config.signature)
+			post.reply(post_text)
 
 	def remove_repeats(self, song_list):
 		return list(set(song_list))
@@ -299,10 +343,15 @@ class SpotPlayBot:
 	# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 	def process_spotify_threads(self, subreddit):
-		for post in self.get_spotify_posts(subreddit):
+		for post in self.get_spotify_playlist_posts(subreddit):
 			post_playlist = self.spotify_list_playlist(post.url)
 			share_link = self.google_create_playlist(post_playlist)
 			self.post_message_in_thread(post, share_link)
+
+		for post in self.get_spotify_album_posts(subreddit):
+			post_album = self.spotify_list_album(post.url)
+			share_link = self.google_create_playlist(post_album)
+			self.post_message_in_thread(post, share_link, type="album")
 
 	def process_context_calls(self, subreddit):
 		"""
