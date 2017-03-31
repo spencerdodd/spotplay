@@ -5,6 +5,7 @@ class Song:
 		self.name = name.encode('utf-8')
 		self.artist = artist.encode('utf-8')
 		self.album = album.encode('utf-8')
+		self.song_id = None
 
 	def get_search_string(self):
 		return "{} {}".format(self.name, self.artist)

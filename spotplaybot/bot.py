@@ -17,9 +17,10 @@ from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOauthError
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 # TODO
-# 1. title of playlist should be the title of the submission that linked the playlist
-# 2. youtube 		-------> 		google play music
-# 3. all sources 	-------> 		spotify
+# 1. Don't create playlist if there are no songs that were parsed
+# 2. Spotify tracks -> google play music
+# 3. Convert all linked audio to google play (youtube posts as well)
+# 4. all sources 	-------> 		spotify
 
 
 class SpotPlayBot:
@@ -117,6 +118,22 @@ class SpotPlayBot:
 
 		return posts_to_scrape
 
+	def get_spotify_track_posts(self, subreddit):
+		print ("[/r/{}] Searching for spotify tracks to re-host".format(self.current_subreddit))
+		posts_to_scrape = []
+
+		for idx, submission in enumerate(subreddit.hot(limit=config.post_threshold)):
+			if "spotify" in submission.url and "track" in submission.url:
+				submission.comments.replace_more()
+
+				if not self.previously_processed_submission(submission):
+					posts_to_scrape.append(submission)
+
+		if len(posts_to_scrape) == 0:
+			print ("[/r/{}] No new posts to re-host".format(self.current_subreddit))
+
+		return posts_to_scrape
+
 	def spotify_list_playlist(self, url_to_scrape):
 		print ("[/r/{}] Scraping playlist at: {}".format(self.current_subreddit, url_to_scrape))
 		user_id = url_to_scrape.split("user/")[1].split("/")[0]
@@ -148,48 +165,83 @@ class SpotPlayBot:
 
 		for track in album["tracks"]["items"]:
 			track_name = track["name"]
-			track_artists = ""
-			for artist in album_artists:
-				track_artists += artist + " "
+			track_artists = album_artists[0]
 
 			scraped_song = Song(track_name, track_artists, album=album_name)
 			songs_by_name.append(scraped_song)
 
+			print ("added song")
+			print (scraped_song.get_search_string())
+
 		return songs_by_name
 
+	def spotify_list_track(self, url_to_scrape):
+		print ("[/r/{}] Scraping song at: {}".format(self.current_subreddit, url_to_scrape))
+		track_id = url_to_scrape.split("track/")[1]
+		track = self.spotify_api.track(track_id)
+		track_name = track["name"]
+		track_artists = track["artists"][0]["name"]
+		track_album = track["album"]["name"]
+		scraped_songs = []
+		scraped_song = Song(track_name, track_artists, album=track_album)
+		scraped_songs.append(scraped_song)
+
+		return scraped_songs
+
 	def google_create_playlist(self, list_of_song_objects):
-		print ("[/r/{}] Creating gplaymusic playlist".format(self.current_subreddit))
+		if len(list_of_song_objects) > 0:
+			print ("[/r/{}] Creating gplaymusic playlist".format(self.current_subreddit))
 
-		cdt = datetime.datetime.today()
-		playlist_title = "[/r/{}] {}-{}-{}".format(self.current_subreddit, cdt.year, cdt.month, cdt.day)
-		new_playlist_id = self.google_api.create_playlist(playlist_title)
+			cdt = datetime.datetime.today()
+			playlist_title = "[/r/{}] {}-{}-{}".format(self.current_subreddit, cdt.year, cdt.month, cdt.day)
+			new_playlist_id = self.google_api.create_playlist(playlist_title)
+			songs_to_add = []
 
-		for song in list_of_song_objects:
-			song_id = self.get_song_from_search(song)
-			if song_id != config.search_failure_string:
-				print ("[/r/{}] Adding {}".format(self.current_subreddit, song.get_search_string()))
-				self.google_api.add_songs_to_playlist(new_playlist_id, song_id)
+			for song in list_of_song_objects:
+				print "[/r/{}] searching for {}".format(self.current_subreddit, song.get_search_string())
+				song_id = self.get_song_from_search(song)
+				song.song_id = song_id
+				if song.song_id != config.search_failure_string:
+					songs_to_add.append(song)
+				else:
+					print ("[/r/{}] Could not find {} in Google Play Music".format(self.current_subreddit,
+																				song.get_search_string()))
+
+			if len(songs_to_add) > 0:
+				for song in songs_to_add:
+					print ("[/r/{}] Adding {}".format(self.current_subreddit, song.get_search_string()))
+					print (vars(song))
+					self.google_api.add_songs_to_playlist(new_playlist_id, song.song_id)
+				print ("[/r/{}] Making playlist {} public".format(self.current_subreddit, playlist_title))
+				self.google_api.edit_playlist(new_playlist_id, public=True)
+
+				share_link = "https://play.google.com/music/playlist/"
+				for playlist in self.google_api.get_all_playlists():
+					if playlist["id"] == new_playlist_id:
+						share_link += playlist["shareToken"]
+
+				print ("[/r/{}] Share link: {}".format(self.current_subreddit, share_link))
+
+				return share_link
 			else:
-				print ("[/r/{}] Could not find {} in Google Play Music".format(self.current_subreddit,
-																			song.get_search_string()))
+				print ("[/r/{}] Deleting empty gplaymusic playlist".format(self.current_subreddit))
+				self.google_api.delete_playlist(new_playlist_id)
+				return config.empty_playlist_link
 
-		print ("[/r/{}] Making playlist {} public".format(self.current_subreddit, playlist_title))
-		self.google_api.edit_playlist(new_playlist_id, public=True)
-
-		share_link = "https://play.google.com/music/playlist/"
-		for playlist in self.google_api.get_all_playlists():
-			if playlist["id"] == new_playlist_id:
-				share_link += playlist["shareToken"]
-
-		print ("[/r/{}] Share link: {}".format(self.current_subreddit, share_link))
-
-		return share_link
+		else:
+			return config.empty_playlist_link
 
 	def get_song_from_search(self, song_to_search):
 		hits = self.google_api.search(song_to_search.get_search_string())["song_hits"]
 
-		if len(hits) > 0:
+		if len(hits) == 1:
+			print ("found {} in gplay (1 hit)".format(song_to_search.get_search_string()))
 			return hits[0]["track"]["storeId"]
+		elif len(hits) > 1:
+			for track in hits:
+				if song_to_search.artist in track["track"]["albumArtist"]:
+					print ("{} in {}".format(song_to_search.get_search_string, track["track"]))
+					return track["track"]["storeId"]
 
 		else:
 			return config.search_failure_string
@@ -275,26 +327,34 @@ class SpotPlayBot:
 			return Song("","","")
 
 	def post_message_in_thread(self, post, share_link, type="submission"):
-		if type == "submission":
-			print ("[/r/{}] Posting message to thread".format(self.current_subreddit))
-			post_text = "Here is an automatically-generated Google Play Music playlist of the songs in the posted Spotify" \
-						" playlist\n\n[Playlist]({})\n\n{}".format(share_link, config.signature)
-			post.reply(post_text)
-		elif type == "comment":
-			print ("[/r/{}] Posting message to thread".format(self.current_subreddit))
-			post_text = "Here is an automatically-generated Google Play Music playlist of the songs in the parent" \
-						" comment\n\n[Playlist]({})\n\n{}".format(share_link, config.signature)
-			post.reply(post_text)
-		elif type == "thread":
-			print ("[/r/{}] Posting message to thread".format(self.current_subreddit))
-			post_text = "Here is an automatically-generated Google Play Music playlist of the songs in this thread" \
-						"\n\n[Playlist]({})\n\n{}".format(share_link, config.signature)
-			post.reply(post_text)
-		elif type == "album":
-			print ("[/r/{}] Posting message to thread".format(self.current_subreddit))
-			post_text = "Here is an automatically-generated Google Play Music playlist of the songs in the posted Spotify" \
-						" album\n\n[Playlist]({})\n\n{}".format(share_link, config.signature)
-			post.reply(post_text)
+		if share_link != config.empty_playlist_link:
+			if type == "submission":
+				print ("[/r/{}] Posting message to thread".format(self.current_subreddit))
+				post_text = "Here is an automatically-generated Google Play Music playlist of the songs in the posted Spotify" \
+							" playlist\n\n[Playlist]({})\n\n{}".format(share_link, config.signature)
+				post.reply(post_text)
+			elif type == "comment":
+				print ("[/r/{}] Posting message to thread".format(self.current_subreddit))
+				post_text = "Here is an automatically-generated Google Play Music playlist of the songs in the parent" \
+							" comment\n\n[Playlist]({})\n\n{}".format(share_link, config.signature)
+				post.reply(post_text)
+			elif type == "thread":
+				print ("[/r/{}] Posting message to thread".format(self.current_subreddit))
+				post_text = "Here is an automatically-generated Google Play Music playlist of the songs in this thread" \
+							"\n\n[Playlist]({})\n\n{}".format(share_link, config.signature)
+				post.reply(post_text)
+			elif type == "album":
+				print ("[/r/{}] Posting message to thread".format(self.current_subreddit))
+				post_text = "Here is an automatically-generated Google Play Music playlist of the songs in the posted Spotify" \
+							" album\n\n[Playlist]({})\n\n{}".format(share_link, config.signature)
+				post.reply(post_text)
+			elif type == "track":
+				print ("[/r/{}] Posting message to thread".format(self.current_subreddit))
+				post_text = "Here is an automatically-generated Google Play Music playlist of the posted Spotify track" \
+							"\n\n[Playlist]({})\n\n{}".format(share_link, config.signature)
+				post.reply(post_text)
+		else:
+			print ("[/r/{}] Not posting, playlist was empty".format(self.current_subreddit))
 
 	def remove_repeats(self, song_list):
 		return list(set(song_list))
@@ -352,6 +412,11 @@ class SpotPlayBot:
 			post_album = self.spotify_list_album(post.url)
 			share_link = self.google_create_playlist(post_album)
 			self.post_message_in_thread(post, share_link, type="album")
+
+		for post in self.get_spotify_track_posts(subreddit):
+			post_track = self.spotify_list_track(post.url)
+			share_link = self.google_create_playlist(post_track)
+			self.post_message_in_thread(post, share_link, type="track")
 
 	def process_context_calls(self, subreddit):
 		"""
