@@ -25,9 +25,11 @@ The bot also has functionality that can be triggered by comments that contain th
 
 ```spotplaybot uptime``` to get the uptime of the bot in seconds
 
-```spotplaybot convert links``` to convert all links in the parent comment
+```spotplaybot convert parent``` to convert all links in the parent comment
 
 ```spotplaybot convert thread``` to convert all links in the thread
+
+```spotplaybot convert link {spotify link}``` to convert the spotify link included in the comment
 
 ## Next Steps
 
