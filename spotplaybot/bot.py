@@ -171,11 +171,12 @@ class SpotPlayBot:
 				# parsed_song = self.google_convert_link_to_song(line)
 				# parsed_songs.append(parsed_song)
 
-			elif "youtube.com" in line and not "playlist" and not "channel" in line:
-				parsed_youtube_link = self.parse_youtube_link_from_line(line)
-				parsed_song = self.youtube_convert_link_to_song(parsed_youtube_link)
-				if parsed_song.name != "":
-					parsed_songs.append(parsed_song)
+			elif "youtube.com" in line and not "playlist" in line and not "channel" in line:
+				parsed_youtube_links = self.parse_youtube_links_from_line(line)
+				for parsed_youtube_link in parsed_youtube_links:
+					parsed_song = self.youtube_convert_link_to_song(parsed_youtube_link)
+					if parsed_song.name != "":
+						parsed_songs.append(parsed_song)
 
 			else:
 				if len(line.split("-")) == 2 and line[line.index("-")-1] == " " and line[line.index("-")+1] == " ":
@@ -187,21 +188,14 @@ class SpotPlayBot:
 		return parsed_songs
 
 	# TODO jesus christ write a regex
-	def parse_youtube_link_from_line(self, comment_link):
-		split_link = comment_link.split("](")
-
-		if len(split_link) == 1:
-			if ")" in split_link:
-				right_bound = split_link.index(")")
-				return split_link[0][:right_bound]
-			else:
-				return split_link[0]
-		else:
-			if ")" in split_link:
-				right_bound = split_link.index(")")
-				return split_link[1][:right_bound]
-			else:
-				return split_link[1][:-1]
+	def parse_youtube_links_from_line(self, comment_link):
+		links = []
+		while "https://www.youtube.com/watch" in comment_link:
+			link_index = comment_link.index("https://www.youtube.com/watch")
+			link = comment_link[link_index:link_index+43]
+			links.append(link)
+			comment_link = comment_link[link_index+43:]
+		return links
 
 	def parse_songs_from_submission(self, submission):
 		submission.comments.replace_more()
