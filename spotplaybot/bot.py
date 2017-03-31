@@ -17,10 +17,10 @@ from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOauthError
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 # TODO
-# 1. Don't create playlist if there are no songs that were parsed
-# 2. Spotify tracks -> google play music
-# 3. Convert all linked audio to google play (youtube posts as well)
-# 4. all sources 	-------> 		spotify
+# 1. Convert any link type (youtube, comment, spotify) in all of the contexts
+# 2. all sources 	-------> 		spotify
+# 3. all sources	------->		youtube
+# 4. Convert to desired playlist type in comment cue (youtube, spotify, googleplay)
 
 
 class SpotPlayBot:
@@ -230,6 +230,9 @@ class SpotPlayBot:
 				if song_to_search.artist in track["track"]["albumArtist"].encode('utf-8'):
 					print ("{} in {}".format(song_to_search.get_search_string(), track["track"]))
 					return track["track"]["storeId"]
+
+			# otherwise, give us the fail string
+			return config.search_failure_string
 
 		else:
 			return config.search_failure_string
