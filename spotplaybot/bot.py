@@ -26,7 +26,7 @@ from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOauthError
 
 class SpotPlayBot:
 	def __init__(self):
-		self.start_time = time.time()
+		self.start_time = datetime.datetime.now()
 
 		# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 		# reddit
@@ -114,78 +114,165 @@ class SpotPlayBot:
 
 		return posts_to_scrape
 
-	def spotify_songs_from_link(self, url_to_scrape):
-		if "playlist" in url_to_scrape:
-			print ("[/r/{}] Scraping playlist at: {}".format(self.current_subreddit, url_to_scrape))
-			user_id = url_to_scrape.split("user/")[1].split("/")[0]
-			playlist_id = url_to_scrape.split("/")[-1]
-			playlist = self.spotify_api.user_playlist_tracks(user_id, playlist_id)
-			songs_by_name = {
-				"type": "playlist",
-				"songs": []
-			}
+	def songs_from_link(self, url_to_scrape, scrape_type="track"):
+		print ("[/r/{}] Converting link {} into a song".format(self.current_subreddit, url_to_scrape))
+		if "text_link" in url_to_scrape:
+			if scrape_type == "album":
+				songs_by_name = {
+					"type": "album",
+					"songs": []
+				}
 
-			for item in playlist["items"]:
-				song = item["track"]
-				song_name = song["name"]
-				song_artist = song["artists"][0]["name"]
-				song_album = song["album"]["name"]
-				scraped_song = Song(song_name, song_artist, album=song_album)
+				return songs_by_name
+
+			elif scrape_type == "track":
+				songs_by_name = {
+					"type": "track",
+					"songs": []
+				}
+				split_link = url_to_scrape.split("|")
+				scraped_song = Song(split_link[2], split_link[1])
 				songs_by_name["songs"].append(scraped_song)
 
-			return songs_by_name
+				return songs_by_name
 
-		elif "album" in url_to_scrape:
-			print ("[/r/{}] Scraping album at: {}".format(self.current_subreddit, url_to_scrape))
-			album_id = url_to_scrape.split("album/")[1]
-			album = self.spotify_api.album(album_id)
-			album_name = album["name"]
-			raw_artists = album["artists"]
-			album_artists = []
-			for artist in raw_artists:
-				artist_name = artist["name"]
-				album_artists.append(artist_name)
-			songs_by_name = {
-				"type": "album",
-				"songs": []
-			}
+		elif "spotify" in url_to_scrape:
+			if "playlist" in url_to_scrape:
+				print ("[/r/{}] Scraping playlist at: {}".format(self.current_subreddit, url_to_scrape))
+				user_id = url_to_scrape.split("user/")[1].split("/")[0]
+				playlist_id = url_to_scrape.split("/")[-1]
+				playlist = self.spotify_api.user_playlist_tracks(user_id, playlist_id)
+				songs_by_name = {
+					"type": "playlist",
+					"songs": []
+				}
 
-			for track in album["tracks"]["items"]:
+				for item in playlist["items"]:
+					song = item["track"]
+					song_name = song["name"]
+					song_artist = song["artists"][0]["name"]
+					song_album = song["album"]["name"]
+					scraped_song = Song(song_name, song_artist, album=song_album)
+					songs_by_name["songs"].append(scraped_song)
+
+				return songs_by_name
+
+			elif "album" in url_to_scrape:
+				print ("[/r/{}] Scraping album at: {}".format(self.current_subreddit, url_to_scrape))
+				album_id = url_to_scrape.split("album/")[1]
+				album = self.spotify_api.album(album_id)
+				album_name = album["name"]
+				raw_artists = album["artists"]
+				album_artists = []
+				for artist in raw_artists:
+					artist_name = artist["name"]
+					album_artists.append(artist_name)
+				songs_by_name = {
+					"type": "album",
+					"songs": []
+				}
+
+				for track in album["tracks"]["items"]:
+					track_name = track["name"]
+					track_artists = album_artists[0]
+
+					scraped_song = Song(track_name, track_artists, album=album_name)
+					songs_by_name["songs"].append(scraped_song)
+
+					print ("added song")
+					print (scraped_song.get_search_string())
+
+				return songs_by_name
+
+			elif "track" in url_to_scrape:
+				print ("[/r/{}] Scraping song at: {}".format(self.current_subreddit, url_to_scrape))
+				track_id = url_to_scrape.split("track/")[1]
+				track = self.spotify_api.track(track_id)
 				track_name = track["name"]
-				track_artists = album_artists[0]
-
-				scraped_song = Song(track_name, track_artists, album=album_name)
+				track_artists = track["artists"][0]["name"]
+				track_album = track["album"]["name"]
+				songs_by_name = {
+					"type": "track",
+					"songs": []
+				}
+				scraped_song = Song(track_name, track_artists, album=track_album)
 				songs_by_name["songs"].append(scraped_song)
 
-				print ("added song")
-				print (scraped_song.get_search_string())
+				return songs_by_name
 
-			return songs_by_name
+		elif "youtube" in url_to_scrape:
+			# https://www.youtube.com/playlist?list=PLfdkz2eiSC3a581dIX0xoQmu9te09n5ka
+			if "playlist" in url_to_scrape:
+				print ("[/r/{}] Scraping playlist at: {}".format(self.current_subreddit, url_to_scrape))
+				playlist_id = url_to_scrape.split("list=")[1]
+				playlist = self.youtube_api.playlistItems().list(
+					part="snippet",
+					playlistId=playlist_id,
+					maxResults="50"
+				).execute()
+				songs_by_name = {
+					"type": "playlist",
+					"songs": []
+				}
 
-		elif "track" in url_to_scrape:
-			print ("[/r/{}] Scraping song at: {}".format(self.current_subreddit, url_to_scrape))
-			track_id = url_to_scrape.split("track/")[1]
-			track = self.spotify_api.track(track_id)
-			track_name = track["name"]
-			track_artists = track["artists"][0]["name"]
-			track_album = track["album"]["name"]
-			songs_by_name = {
-				"type": "track",
-				"songs": []
-			}
-			scraped_song = Song(track_name, track_artists, album=track_album)
-			songs_by_name["songs"].append(scraped_song)
+				for track in playlist["items"]:
+					video_title = track["snippet"]["title"]
+					split_title = video_title.split("-")
+					if len(split_title) == 1:
+						if len(split_title[0]) > 0:
+							parsed_song = Song(split_title[0], "") # just make it a song
+							songs_by_name["songs"].append(parsed_song)
 
-			return songs_by_name
+					else:
+						if len(split_title[0]) > 0 and len(split_title[1]) > 0:
+							parsed_song = Song(split_title[0], split_title[1])
+
+							songs_by_name["songs"].append(parsed_song)
+
+				return songs_by_name
+
+			# TODO
+			elif "channel" in url_to_scrape:
+				return {"type": "playlist", "songs": []}
+
+			else:
+				print ("[/r/{}] Scraping playlist at: {}".format(self.current_subreddit, url_to_scrape))
+				video_id = url_to_scrape.split("?v=")[1]
+				video_info = self.youtube_api.videos().list(
+					part="snippet,localizations",
+					id=video_id
+				).execute()
+				songs_by_name = {
+					"type": "playlist",
+					"songs": []
+				}
+				video_title = video_info["items"][0]["snippet"]["title"]
+				split_title = video_title.split("-")
+				if len(split_title) == 1:
+					if len(split_title[0]) > 0:
+						parsed_song = Song(split_title[0], "")  # just make it a song
+						songs_by_name["songs"].append(parsed_song)
+				else:
+					if len(split_title[0]) > 0 and len(split_title[1]) > 0:
+						parsed_song = Song(split_title[0], split_title[1])
+
+						songs_by_name["songs"].append(parsed_song)
+
+				return songs_by_name
+		else:
+			return {"type": "playlist", "songs": []}
 
 	def google_create_playlist(self, list_of_song_objects):
+		print "DEBUG"
+		for song in list_of_song_objects:
+			print vars(song)
 		if len(list_of_song_objects) > 0:
 			print ("[/r/{}] Creating gplaymusic playlist".format(self.current_subreddit))
 			songs_to_add = []
 
 			for song in list_of_song_objects:
 				print "[/r/{}] searching for {}".format(self.current_subreddit, song.get_search_string())
-				song_id = self.get_song_from_search(song)
+				song_id = self.get_song_id_from_search(song)
 				song.song_id = song_id
 				if song.song_id != config.search_failure_string:
 					songs_to_add.append(song)
@@ -220,66 +307,87 @@ class SpotPlayBot:
 		else:
 			return config.empty_playlist_link
 
-	def get_song_from_search(self, song_to_search):
+	def get_song_id_from_search(self, song_to_search):
+		print ("DebugDebugDebugDebug\n{}\nDebugDebugDebugDebug".format(song_to_search.get_search_string()))
 		hits = self.google_api.search(song_to_search.get_search_string())["song_hits"]
+		print ("DebugDebugDebugDebug\n{}\nDebugDebugDebugDebug".format(hits))
 
 		if len(hits) == 1:
 			print ("found {} in gplay (1 hit)".format(song_to_search.get_search_string()))
 			return hits[0]["track"]["storeId"]
 		elif len(hits) > 1:
-			for track in hits:
-				if song_to_search.artist in track["track"]["albumArtist"].encode('utf-8'):
-					print ("{} in {}".format(song_to_search.get_search_string(), track["track"]))
-					return track["track"]["storeId"]
+			best_hit_id = None
+			current_name = song_to_search.name
+			current_artist = song_to_search.artist
+
+			while best_hit_id is None:
+				print ("searching for {} {}".format(current_artist, current_name))
+				for track in hits:
+					if current_artist == track["track"]["albumArtist"].encode('utf-8') and \
+						current_name == track["track"]["title"]:
+						print ("{} in {}".format(song_to_search.get_search_string(), track["track"]))
+						best_hit_id = track["track"]["storeId"]
+
+				for track in hits:
+					if current_artist == track["track"]["albumArtist"].encode('utf-8') and \
+						current_name in track["track"]["title"]:
+						print ("{} in {}".format(song_to_search.get_search_string(), track["track"]))
+						best_hit_id = track["track"]["storeId"]
+
+				for track in hits:
+					if current_artist in track["track"]["albumArtist"].encode('utf-8') and \
+						current_name in track["track"]["title"]:
+						print ("{} in {}".format(song_to_search.get_search_string(), track["track"]))
+						best_hit_id = track["track"]["storeId"]
+
+				# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+				# Start fuzzing the input
+				# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+				current_name = current_name.split("[")[0] 				# remove any label names
+				for track in hits:
+					if current_artist in track["track"]["albumArtist"].encode('utf-8') and \
+						current_name in track["track"]["title"]:
+						print ("{} in {}".format(song_to_search.get_search_string(), track["track"]))
+						best_hit_id = track["track"]["storeId"]
+
+				current_name = current_name.split("(")[0]				# remove any features or remixes
+				for track in hits:
+					if current_artist in track["track"]["albumArtist"].encode('utf-8') and \
+						current_name in track["track"]["title"]:
+						print ("{} in {}".format(song_to_search.get_search_string(), track["track"]))
+						best_hit_id = track["track"]["storeId"]
+
+				return config.search_failure_string
+
+			return best_hit_id
 
 			# otherwise, give us the fail string
-			return config.search_failure_string
+
 
 		else:
 			return config.search_failure_string
 
-	def parse_songs_from_comment(self, comment_text):
-		lines = comment_text.split("\n\n")
-		parsed_songs = []
-
-		for idx, dirty_line in enumerate(lines):
-			line = dirty_line.encode('utf-8')
-			if "spotify.com" in line:
-				parsed_links = []
-				for parsed_spotify_link in self.parse_spotify_links_from_line(line):
-					parsed_links.append(parsed_spotify_link)
-
-				return parsed_links
-
-			elif "play.google.com" in line:
-				pass
-				# parsed_song = self.google_convert_link_to_song(line)
-				# parsed_songs.append(parsed_song)
-
-			elif "youtube.com" in line and not "playlist" in line and not "channel" in line:
-				parsed_youtube_links = self.parse_youtube_links_from_line(line)
-				for parsed_youtube_link in parsed_youtube_links:
-					parsed_song = self.youtube_convert_link_to_song(parsed_youtube_link)
-					if parsed_song.name != "":
-						parsed_songs.append(parsed_song)
-
-			else:
-				if len(line.split("-")) == 2 and line[line.index("-")-1] == " " and line[line.index("-")+1] == " ":
-					print ("[/r/{}] Processing line {} | {} |".format(self.current_subreddit, idx, line))
-					song_info = line.split("-")
-					parsed_song = Song(song_info[0], song_info[1])
-					parsed_songs.append(parsed_song)
-
-		return parsed_songs
-
-	# TODO turn these all into one method
 	def parse_youtube_links_from_line(self, comment_line):
 		links = []
-		while "https://www.youtube.com/watch" in comment_line:
-			link_index = comment_line.index("https://www.youtube.com/watch")
-			link = comment_line[link_index:link_index+43]
-			links.append(link)
-			comment_line = comment_line[link_index+43:]
+		while "https://www.youtube.com/" in comment_line:
+			# https://www.youtube.com/channel/UCboMX_UNgaPBsUOIgasn3-Q
+			if "channel" in comment_line:
+				link_index = comment_line.index("https://www.youtube.com/channel")
+				link = comment_line[link_index:link_index+56]
+				comment_line = comment_line[link_index+56]
+
+			# https://www.youtube.com/playlist?list=PLfdkz2eiSC3a581dIX0xoQmu9te09n5ka
+			if "playlist" in comment_line:
+				link_index = comment_line.index("https://www.youtube.com/")
+				link = comment_line[link_index:link_index+72]
+				links.append(link)
+				comment_line = comment_line[link_index+72:]
+
+			elif "watch" in comment_line:
+				link_index = comment_line.index("https://www.youtube.com/watch")
+				link = comment_line[link_index:link_index+43]
+				links.append(link)
+				comment_line = comment_line[link_index+43:]
 		return links
 
 	def parse_spotify_links_from_line(self, comment_line):
@@ -302,15 +410,6 @@ class SpotPlayBot:
 				comment_line = comment_line[link_index + 53:]
 		return links
 
-	def parse_songs_from_submission(self, submission):
-		submission.comments.replace_more()
-		songs = []
-
-		for comment in submission.comments.list():
-			songs += self.parse_songs_from_comment(comment.body)
-
-		return songs
-
 	def parse_links_from_comment(self, comment_text):
 		parsed_links = []
 		lines = comment_text.split("\n\n")
@@ -324,40 +423,29 @@ class SpotPlayBot:
 				for parsed_youtube_link in self.parse_youtube_links_from_line(line):
 					parsed_links.append(parsed_youtube_link)
 
+			elif len(line.split("-")) > 1:
+				split_line = line.split("-")
+				if len(split_line[0]) > 0 and len(split_line[1]) > 0:
+					text_link = "text_link|{}|{}".format(split_line[0], split_line[1])
+					parsed_links.append(text_link)
+
 		return parsed_links
 
-	# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-	# methods to get songs from link types
-	# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+	def parse_songs_from_submission(self, submission):
+		submission.comments.replace_more()
+		songs = []
 
-	# TODO
-	def spotify_convert_link_to_song(self, link):
-		pass
+		for comment in submission.comments.list():
+			songs += self.parse_songs_from_comment(comment)
 
-	# TODO
-	def google_convert_link_to_song(self, link):
-		pass
+		return songs
 
-	def youtube_convert_link_to_song(self, link):
-		print ("[/r/{}] link: {}".format(self.current_subreddit, link))
-		video_id = link.split("?v=")[1]
-		video_info = self.youtube_api.videos().list(
-			part="snippet,localizations",
-			id=video_id
-  		).execute()
-		print video_info
-		try:
-			video_title = video_info["items"][0]["snippet"]["title"]
-			split_info = video_title.split("-")
-			if len(split_info) == 1:
-				parsed_song = Song(split_info[0], "")					# just make it the song
-			else:
-				parsed_song = Song(split_info[0], split_info[1])
+	def parse_songs_from_comment(self, comment):
+		songs = []
+		for link in self.parse_links_from_comment(comment.body):
+			songs += self.songs_from_link(link)["songs"]
 
-			return parsed_song
-		except:
-			# no results on the search
-			return Song("","","")
+		return songs
 
 	def post_message_in_thread(self, post, share_link, type="submission"):
 		print ("[/r/{}] Processing post_message_in_thread".format(self.current_subreddit))
@@ -395,6 +483,11 @@ class SpotPlayBot:
 				post_text = "Here is an automatically-generated Google Play Music playlist of the posted Spotify playlist" \
 							"\n\n[Playlist]({})\n\n{}".format(share_link, config.signature)
 				post.reply(post_text)
+			elif type == "request":
+				print ("[/r/{}] Posting message to thread".format(self.current_subreddit))
+				post_text = "Here is an automatically-generated Google Play Music playlist of the requested link" \
+							"\n\n[Playlist]({})\n\n{}".format(share_link, config.signature)
+				post.reply(post_text)
 		else:
 			print ("[/r/{}] Not posting, playlist was empty".format(self.current_subreddit))
 
@@ -407,12 +500,11 @@ class SpotPlayBot:
 
 	def get_uptime(self, comment):
 		print ("[/r/{}] Getting uptime and replying to comment".format(self.current_subreddit))
-		uptime_seconds = time.time() - self.start_time
-		uptime_hours = uptime_seconds / 60
-		uptime_days = uptime_hours / 24
+		time_delta = datetime.datetime.now() - self.start_time
+		uptime_minutes = divmod(time_delta.total_seconds(), 60)[0]
 
 		message = "**Uptime Statistics for spotplaybot**\n\nspotplaybot has been up for:\n\n" \
-				  "{} hours\n\n{}".format(uptime_hours, config.signature)
+				  "{} minutes\n\n{}".format(uptime_minutes, config.signature)
 
 		comment.reply(message)
 
@@ -422,9 +514,9 @@ class SpotPlayBot:
 		print ("[/r/{}] Converting links in parent comment".format(self.current_subreddit))
 		comment_parent = comment.parent()
 		if hasattr(comment_parent, "replies"):
-			songs = self.parse_songs_from_comment(comment_parent.body)
-			songs = self.remove_repeats(songs)
-			share_link = self.google_create_playlist(songs)
+			post_playlist = self.parse_songs_from_comment(comment_parent)
+			post_playlist = self.remove_repeats(post_playlist)
+			share_link = self.google_create_playlist(post_playlist)
 			self.post_message_in_thread(comment, share_link, type="comment")
 
 			print ("[/r/{}] Complete!".format(self.current_subreddit))
@@ -433,21 +525,18 @@ class SpotPlayBot:
 
 	def get_all_thread_links(self, comment):
 		print ("[/r/{}] Converting links from full submission".format(self.current_subreddit))
-		songs = self.parse_songs_from_submission(comment.submission)
-		songs = self.remove_repeats(songs)
-		share_link = self.google_create_playlist(songs)
+		post_playlist = self.parse_songs_from_submission(comment.submission)
+		post_playlist = self.remove_repeats(post_playlist)
+		share_link = self.google_create_playlist(post_playlist)
 		self.post_message_in_thread(comment, share_link, type="thread")
 
 		print ("[/r/{}] Complete".format(self.current_subreddit))
 
-	# TODO add other link processing not just spotify
 	def convert_comment_link(self, comment):
 		print ("[/r/{}] Converting links from comment".format(self.current_subreddit))
-		links = self.parse_links_from_comment(comment.body)
-		for link in links:
-			post_playlist = self.spotify_songs_from_link(link)
-			share_link = self.google_create_playlist(post_playlist["songs"])
-			self.post_message_in_thread(comment, share_link, type=post_playlist["type"])
+		post_playlist = self.parse_songs_from_comment(comment)
+		share_link = self.google_create_playlist(post_playlist)
+		self.post_message_in_thread(comment, share_link, type="request")
 
 	# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 	# base methods
@@ -455,7 +544,7 @@ class SpotPlayBot:
 
 	def process_spotify_threads(self, subreddit):
 		for post in self.get_spotify_posts(subreddit):
-			post_playlist = self.spotify_songs_from_link(post.url)
+			post_playlist = self.songs_from_link(post.url)
 			share_link = self.google_create_playlist(post_playlist["songs"])
 			self.post_message_in_thread(post, share_link, type=post_playlist["type"])
 
@@ -500,7 +589,7 @@ class SpotPlayBot:
 			try:
 				for subreddit in self.subreddits:
 					self.current_subreddit = config.subreddits[self.subreddits.index(subreddit)]
-					self.process_spotify_threads(subreddit)
+					#self.process_spotify_threads(subreddit)
 					self.process_context_calls(subreddit)
 					print ("[/r/{}] Processing Complete!".format(self.current_subreddit))
 
@@ -516,8 +605,6 @@ class SpotPlayBot:
 															 from_=config.twilio_from_number,
 															 body="{}".format(message2_body))
 				self.restart()
-
-
 
 
 def main():

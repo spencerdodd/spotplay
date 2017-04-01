@@ -2,9 +2,9 @@ import codecs
 
 class Song:
 	def __init__(self, name, artist, album=""):
-		self.name = name.encode('utf-8')
-		self.artist = artist.encode('utf-8')
-		self.album = album.encode('utf-8')
+		self.name = name.encode('utf-8').strip()
+		self.artist = artist.encode('utf-8').strip()
+		self.album = album.encode('utf-8').strip()
 		self.song_id = None
 
 	def get_search_string(self):
