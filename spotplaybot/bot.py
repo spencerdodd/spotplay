@@ -323,41 +323,51 @@ class SpotPlayBot:
 			while best_hit_id is None:
 				print ("searching for {} {}".format(current_artist, current_name))
 				for track in hits:
+					print "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-="
+					print ("{} - {} from {}".format(current_artist, current_name, song_to_search.album))
+					print ("{} - {} from {}".format(track["track"]["albumArtist"], track["track"]["title"],
+													track["track"]["album"]))
 					if current_artist == track["track"]["albumArtist"].encode('utf-8') and \
 						current_name == track["track"]["title"]:
-						print ("{} in {}".format(song_to_search.get_search_string(), track["track"]))
-						best_hit_id = track["track"]["storeId"]
-
-				for track in hits:
-					if current_artist == track["track"]["albumArtist"].encode('utf-8') and \
-						current_name in track["track"]["title"]:
-						print ("{} in {}".format(song_to_search.get_search_string(), track["track"]))
-						best_hit_id = track["track"]["storeId"]
-
-				for track in hits:
-					if current_artist in track["track"]["albumArtist"].encode('utf-8') and \
-						current_name in track["track"]["title"]:
 						print ("{} in {}".format(song_to_search.get_search_string(), track["track"]))
 						best_hit_id = track["track"]["storeId"]
 
 				# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 				# Start fuzzing the input
 				# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-				current_name = current_name.split("[")[0] 				# remove any label names
+
+				current_name = current_name.split("(feat.")[0].strip() 				# remove remixes / features from song
 				for track in hits:
-					if current_artist in track["track"]["albumArtist"].encode('utf-8') and \
-						current_name in track["track"]["title"]:
-						print ("{} in {}".format(song_to_search.get_search_string(), track["track"]))
+					track_artist = track["track"]["albumArtist"].encode('utf-8')
+					track_name = track["track"]["title"].split("(feat.")[0].strip().encode('utf-8')
+					print "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-="
+					print ("{} - {} from {}".format(current_artist, current_name, song_to_search.album))
+					print ("{} - {} from {}".format(track_artist, track_name,
+													track["track"]["album"]))
+					if current_artist == track_artist and \
+						current_name == track_name:
 						best_hit_id = track["track"]["storeId"]
 
-				current_name = current_name.split("(")[0]				# remove any features or remixes
 				for track in hits:
-					if current_artist in track["track"]["albumArtist"].encode('utf-8') and \
-						current_name in track["track"]["title"]:
-						print ("{} in {}".format(song_to_search.get_search_string(), track["track"]))
+					track_artist = track["track"]["albumArtist"].encode('utf-8')
+					track_name = track["track"]["title"].split("(feat.")[0].strip().encode('utf-8')
+					if current_artist == track_artist and \
+						current_name in track_name:
 						best_hit_id = track["track"]["storeId"]
 
-				return config.search_failure_string
+				# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+				# Last try...switch artist and title
+				# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+				for track in hits:
+					track_artist = track["track"]["albumArtist"].encode('utf-8')
+					track_name = track["track"]["title"].split("(feat.")[0].strip().encode('utf-8')
+					if current_artist in track_name and \
+						current_name in track_artist:
+						best_hit_id = track["track"]["storeId"]
+
+
+				for track in hits:
+					return config.search_failure_string
 
 			return best_hit_id
 
@@ -448,7 +458,7 @@ class SpotPlayBot:
 		return songs
 
 	def post_message_in_thread(self, post, share_link, type="submission"):
-		print ("[/r/{}] Processing post_message_in_thread".format(self.current_subreddit))
+		print ("[/r/{}] Processing post_message_in_thread {}".format(self.current_subreddit, post.submission.url))
 		print ("[/r/{}] post_message_in_thread : post {}".format(self.current_subreddit, post))
 		print ("[/r/{}] post_message_in_thread : share_link {}".format(self.current_subreddit, share_link))
 		print ("[/r/{}] post_message_in_thread : type {}".format(self.current_subreddit, type))
@@ -557,6 +567,7 @@ class SpotPlayBot:
 			"{} convert link".format(config.context_clue): self.convert_comment_link,
 		}
 		for submission in subreddit.hot(limit=config.post_threshold):
+			print "[/r/{}] Searching submission: {}".format(self.current_subreddit, submission.title)
 			submission.comments.replace_more()
 			for comment in submission.comments.list():
 				for context_call in context_calls.keys():
@@ -585,6 +596,13 @@ class SpotPlayBot:
 		self.__init__()
 
 	def run(self):
+		"""
+		divinity = Song("Divinity", "Porter Robinson")
+		song_id = self.get_song_id_from_search(divinity)
+		track = self.google_api.get_track_info(song_id)
+		print ("{} - {} from {}".format(track["albumArtist"], track["title"], track["album"]))
+		"""
+
 		while True:
 			try:
 				for subreddit in self.subreddits:
