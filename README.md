@@ -5,7 +5,7 @@ This project is a bot written in python that scrapes posts in
 playlists and albums. When it finds a Spotify-hosted playlist or album, it scrapes the songs from the playlist and
 re-hosts them on a Google Play Music playlist.
 
-The bot also has functionality that can be triggered by comments that contain the keyword ```spotplaybot```
+The bot also has functionality that can be triggered by comments that contain the keyword ```spotplaybot```.
 
 ## Requirements
 
@@ -17,21 +17,33 @@ The bot also has functionality that can be triggered by comments that contain th
 
 ## Comment-triggered Functionality
 
-- Youtube link conversion to google play music
+- Youtube/Spotify link conversion to google play music
 
 - Text in format ```Artist - Song``` conversion to google play music
 
 - Context-cued functionality
 
-```spotplaybot uptime``` to get the uptime of the bot in seconds
+```spotplaybot uptime``` to get the uptime of the bot in seconds (maybe...)
 
-```spotplaybot convert parent``` to convert all links in the parent comment
+```spotplaybot convert parent tracks``` to get a playlist of all the songs in the parent comment
 
-```spotplaybot convert thread``` to convert all links in the thread
+```spotplaybot convert thread tracks``` to get a playlist of all of the songs in the entire thread
 
-```spotplaybot convert link {spotify link}``` to convert the spotify link included in the comment
+```spotplaybot convert thread albums``` to get a playlist of all the songs in all the albums in the entire thread
+
+```spotplaybot convert link comment {{link}}``` to get a playlist of the songs in the given link
+
+```spotplaybot convert link thread albums {{reddit-link}}``` to get a playlist of all the songs in all the
+albums in a linked reddit thread
+
+```spotplaybot convert link thread tracks {{reddit-link}}``` to get a playlist of all the songs in a
+linked reddit thread
 
 ## Next Steps
+
+- Integrate playlist splitting when playlists are > 1000 tracks (not allowed by google play music)
+
+- Convert parent comment albums to playlists
 
 - Creation of Spotify Playlists from GPlayMusic and Other Sources
 

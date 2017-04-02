@@ -1,10 +1,10 @@
-import codecs
+from kitchen.text.converters import to_unicode
 
 class Song:
 	def __init__(self, name, artist, album=""):
-		self.name = name.encode('utf-8').strip()
-		self.artist = artist.encode('utf-8').strip()
-		self.album = album.encode('utf-8').strip()
+		self.name = name
+		self.artist = artist
+		self.album = album
 		self.song_id = None
 
 	def get_search_string(self):
