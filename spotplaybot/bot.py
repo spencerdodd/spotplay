@@ -812,7 +812,10 @@ class SpotPlayBot:
 			post_playlist = self.remove_repeats(post_playlist)
 			print ("Post repeat removal: {}".format(post_playlist))
 			share_link = self.google_create_playlist(post_playlist, input_type="searched_songs")
-			self.post_message_in_thread(comment, share_link, type="thread")
+			if self.songs_added_to_current_playlist > config.google_playlist_max_size:
+				self.post_message_in_thread(comment, share_link, type="split_playlist")
+			else:
+				self.post_message_in_thread(comment, share_link, type="thread")
 
 	def get_all_thread_album_links_at_link(self, comment):
 		"""
@@ -854,7 +857,10 @@ class SpotPlayBot:
 		for post in self.get_spotify_posts(subreddit):
 			post_playlist = self.songs_from_link(post.url)
 			share_link = self.google_create_playlist(post_playlist["songs"])
-			self.post_message_in_thread(post, share_link, type=post_playlist["type"])
+			if self.songs_added_to_current_playlist > config.google_playlist_max_size:
+				self.post_message_in_thread(post, share_link, type="split_playlist")
+			else:
+				self.post_message_in_thread(post, share_link, type=post_playlist["type"])
 
 	def process_context_calls(self, subreddit):
 		print ("[/r/{}] Searching for context calls".format(self.current_subreddit))
