@@ -816,7 +816,7 @@ class SpotPlayBot:
 			try:
 				for subreddit in self.subreddits:
 					self.current_subreddit = config.subreddits[self.subreddits.index(subreddit)]
-					#self.process_spotify_threads(subreddit)
+					self.process_spotify_threads(subreddit)
 					self.process_context_calls(subreddit)
 					print ("[/r/{}] Processing Complete!".format(self.current_subreddit))
 
