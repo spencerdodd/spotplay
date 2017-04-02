@@ -311,6 +311,7 @@ class SpotPlayBot:
 			return {"type": "playlist", "songs": []}
 
 	def google_create_playlist(self, list_of_song_objects, input_type="unsearched_songs"):
+		print ("[/r/{}] Processing {} songs".format(self.current_subreddit, len(list_of_song_objects)))
 		print ("[/r/{}] Songs : {}".format(self.current_subreddit, list_of_song_objects))
 		if len(list_of_song_objects) > 0:
 			print ("[/r/{}] Creating gplaymusic playlist".format(self.current_subreddit))
@@ -331,7 +332,11 @@ class SpotPlayBot:
 				print "[/r/{}] adding previously searched songs".format(self.current_subreddit)
 				songs_to_add += list_of_song_objects
 
-			if len(songs_to_add) > 0:
+			if len(songs_to_add) == 0:
+				print ("[/r/{}] Playlist empty".format(self.current_subreddit))
+				return config.empty_playlist_link
+
+			elif len(songs_to_add) <= 1000:
 				cdt = datetime.datetime.today()
 				playlist_title = "[/r/{}] {}-{}-{}".format(self.current_subreddit, cdt.year, cdt.month, cdt.day)
 				new_playlist_id = self.google_api.create_playlist(playlist_title)
@@ -355,9 +360,46 @@ class SpotPlayBot:
 				print ("[/r/{}] Share link: {}".format(self.current_subreddit, share_link))
 
 				return share_link
-			else:
-				print ("[/r/{}] Playlist empty".format(self.current_subreddit))
-				return config.empty_playlist_link
+
+			elif len(songs_to_add) > 1000:
+				print ("[/r/{}] Processing a multiple playlist upload".format(self.current_subreddit))
+				cdt = datetime.datetime.today()
+				playlist_title = "[/r/{}] {}-{}-{}".format(self.current_subreddit, cdt.year, cdt.month, cdt.day)
+				new_playlists = []
+				number_of_playlists = (len(songs_to_add) / config.google_playlist_max_size)
+				if len(songs_to_add) % config.google_playlist_max_size != 0:
+					number_of_playlists += 1
+
+				for x in range(0, number_of_playlists):
+					new_playlist_id = self.google_api.create_playlist(playlist_title)
+					new_playlists.append(new_playlist_id)
+
+				for song in songs_to_add:
+					self.songs_added_to_current_playlist += 1
+					if song.song_id is not None and song.song_id[0] == "T":
+						print ("[/r/{}] Adding {}".format(self.current_subreddit, song.get_search_string()))
+						print (vars(song))
+						playlist_to_add_to = self.songs_added_to_current_playlist / config.google_playlist_max_size
+						self.google_api.add_songs_to_playlist(new_playlists[playlist_to_add_to], song.song_id)
+					else:
+						self.failures.append(song)
+
+				share_links = []
+
+				for new_playlist_id in new_playlists:
+					print ("[/r/{}] Making playlist {} public".format(self.current_subreddit, playlist_title))
+					self.google_api.edit_playlist(new_playlist_id, public=True)
+
+					share_link = "https://play.google.com/music/playlist/"
+					for playlist in self.google_api.get_all_playlists():
+						if playlist["id"] == new_playlist_id:
+							share_link += playlist["shareToken"]
+
+					print ("[/r/{}] Share link: {}".format(self.current_subreddit, share_link))
+					share_links.append(share_link)
+
+				return share_links
+
 
 		else:
 			return config.empty_playlist_link
@@ -657,6 +699,14 @@ class SpotPlayBot:
 					"[/r/{}] Processing post_message_in_thread {}".format(self.current_subreddit, post.submission.url))
 				post_text = "Your syntax was incorrect. Check out the github for the command structures" \
 							"\n\n{}".format(config.signature)
+				post.reply(post_text)
+			elif type == "split_playlist":
+				print ("[/r/{}] Processing post_message_in_thread {}".format(self.current_subreddit, post.submission.url))
+				post_text = "Here is an automatically-generated Google Play Music playlist of the requested link"
+				post_text += "Playlist was too long and had to be split up into multiple playlists"
+				for idx, playlist_link in enumerate(share_link):
+					post_text += "Playlist {}: {}".format(idx, playlist_link)
+				post_text += "\n\n{}".format(config.signature)
 				post.reply(post_text)
 		else:
 			print ("[/r/{}] Not posting, playlist was empty".format(self.current_subreddit))
