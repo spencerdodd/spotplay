@@ -702,12 +702,14 @@ class SpotPlayBot:
 				post.reply(post_text)
 			elif type == "split_playlist":
 				print ("[/r/{}] Processing post_message_in_thread {}".format(self.current_subreddit, post.submission.url))
-				post_text = "Here is an automatically-generated Google Play Music playlist of the requested link"
-				post_text += "Playlist was too long and had to be split up into multiple playlists"
+				post_text = "Here is an automatically-generated Google Play Music playlist of the requested link\n\n"
+				post_text += "Playlist was too long and had to be split up into multiple playlists:\n\n"
 				for idx, playlist_link in enumerate(share_link):
-					post_text += "Playlist {}: {}".format(idx, playlist_link)
+					post_text += "Playlist {}: [Link]({})\n\n".format(idx + 1, playlist_link)
 				post_text += "\n\n{}".format(config.signature)
 				post.reply(post_text)
+			else:
+				print ("Whoops")
 		else:
 			print ("[/r/{}] Not posting, playlist was empty".format(self.current_subreddit))
 
@@ -767,7 +769,10 @@ class SpotPlayBot:
 			post_playlist = self.remove_repeats(post_playlist)
 			print ("Post repeat removal: {}".format(post_playlist))
 			share_link = self.google_create_playlist(post_playlist, input_type="searched_songs")
-			self.post_message_in_thread(comment, share_link, type="thread")
+			if self.songs_added_to_current_playlist > config.google_playlist_max_size:
+				self.post_message_in_thread(comment, share_link, type="split_playlist")
+			else:
+				self.post_message_in_thread(comment, share_link, type="thread")
 
 		else:
 			post_playlist = self.parse_albums_from_submission(comment.submission)
@@ -778,6 +783,13 @@ class SpotPlayBot:
 			self.post_message_in_thread(comment, share_link, type="thread")
 
 	def get_all_thread_album_links_at_link(self, comment):
+		share_links = [
+			"https://play.google.com/music/playlist/AMaBXynoo9s39pzqy1sBPsjRr93SujnYvZd4H0ckFw1oc7psGM50KbCG76UAjTG1E_Hdp3VpMz2--hd6HU5e-8_q7mUBHXAnkg==",
+			"https://play.google.com/music/playlist/AMaBXylo2YACjXpPfiFRRbLIRA82PvVsg1GyH8Dv3dzax_Didi1t0LV6mW0QYf62c-zRwowkBlbd1SXofDnpG0nmMWe4u8ruyg==",
+			"https://play.google.com/music/playlist/AMaBXymnf2kD7rxvCXeS-W7a2nqswi7tQ_jgRrY9OFVWOgc_wC9eKm9W4Vkmwp89aTghkohWDWYa7yjdCGlBZK-fulxI9VhEgw=="
+		]
+		self.post_message_in_thread(comment, share_links, type="split_playlist")
+		"""
 		try:
 			print ("[/r/{}] Getting all track links from command {}".format(self.current_subreddit, comment.body))
 			reddit_link = comment.body.replace("\n", "").split("convert link thread albums")[1].strip()
@@ -788,6 +800,7 @@ class SpotPlayBot:
 		except Exception as e:
 			raise
 			#self.post_message_in_thread(comment, config.search_failure_string, type="reddit link error")
+		"""
 
 	def get_all_thread_track_links_at_link(self, comment):
 		try:
