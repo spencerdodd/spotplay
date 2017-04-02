@@ -10,6 +10,9 @@ class Song:
 	def get_search_string(self):
 		return "{} {}".format(self.name, self.artist)
 
+	def get_album_search_string(self):
+		return "{} {}".format(self.artist, self.album)
+
 	def __hash__(self):
 		return hash(self.name + self.artist + self.album)
 
