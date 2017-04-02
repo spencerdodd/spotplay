@@ -701,7 +701,7 @@ class SpotPlayBot:
 							"\n\n{}".format(config.signature)
 				post.reply(post_text)
 			elif type == "split_playlist":
-				print ("[/r/{}] Processing post_message_in_thread {}".format(self.current_subreddit, post.submission.url))
+				print ("[/r/{}] Processing post_message_in_thread {}".format(self.current_subreddit, post.url))
 				post_text = "Here is an automatically-generated Google Play Music playlist of the requested link\n\n"
 				post_text += "Playlist was too long and had to be split up into multiple playlists:\n\n"
 				for idx, playlist_link in enumerate(share_link):
@@ -808,7 +808,8 @@ class SpotPlayBot:
 			self.get_all_thread_album_links(reddit_thread)
 
 		except Exception as e:
-			self.post_message_in_thread(comment, config.search_failure_string, type="reddit link error")
+			raise
+			# self.post_message_in_thread(comment, config.search_failure_string, type="reddit link error")
 
 	def get_all_thread_track_links_at_link(self, comment):
 		try:
