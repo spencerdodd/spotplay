@@ -344,7 +344,6 @@ class SpotPlayBot:
 				for idx, song in enumerate(songs_to_add):
 					if song.song_id is not None and song.song_id[0] == "T":
 						print ("[/r/{}] Adding {}/{}: {}".format(self.current_subreddit, idx, len(songs_to_add), song.get_search_string()))
-						print (vars(song))
 						self.google_api.add_songs_to_playlist(new_playlist_id, song.song_id)
 					else:
 						self.failures.append(song)
@@ -374,11 +373,11 @@ class SpotPlayBot:
 					new_playlist_id = self.google_api.create_playlist(playlist_title)
 					new_playlists.append(new_playlist_id)
 
-				for song in songs_to_add:
+				for idx, song in enumerate(songs_to_add):
 					self.songs_added_to_current_playlist += 1
 					if song.song_id is not None and song.song_id[0] == "T":
-						print ("[/r/{}] Adding {}".format(self.current_subreddit, song.get_search_string()))
-						print (vars(song))
+						print ("[/r/{}] Adding {}/{}: {}".format(self.current_subreddit, idx, len(songs_to_add),
+																 song.get_search_string()))
 						playlist_to_add_to = self.songs_added_to_current_playlist / config.google_playlist_max_size
 						self.google_api.add_songs_to_playlist(new_playlists[playlist_to_add_to], song.song_id)
 					else:
