@@ -341,9 +341,9 @@ class SpotPlayBot:
 				playlist_title = "[/r/{}] {}-{}-{}".format(self.current_subreddit, cdt.year, cdt.month, cdt.day)
 				new_playlist_id = self.google_api.create_playlist(playlist_title)
 
-				for song in songs_to_add:
+				for idx, song in enumerate(songs_to_add):
 					if song.song_id is not None and song.song_id[0] == "T":
-						print ("[/r/{}] Adding {}".format(self.current_subreddit, song.get_search_string()))
+						print ("[/r/{}] Adding {}/{}: {}".format(self.current_subreddit, idx, len(songs_to_add), song.get_search_string()))
 						print (vars(song))
 						self.google_api.add_songs_to_playlist(new_playlist_id, song.song_id)
 					else:
@@ -651,6 +651,7 @@ class SpotPlayBot:
 		return songs
 
 	def post_message_in_thread(self, post, share_link, type="submission"):
+		self.songs_added_to_current_playlist = 0
 		print ("[/r/{}] post_message_in_thread : post {}".format(self.current_subreddit, post))
 		print ("[/r/{}] post_message_in_thread : share_link {}".format(self.current_subreddit, share_link))
 		print ("[/r/{}] post_message_in_thread : type {}".format(self.current_subreddit, type))
@@ -739,7 +740,10 @@ class SpotPlayBot:
 			post_playlist = self.parse_songs_from_comment(comment_parent)
 			post_playlist = self.remove_repeats(post_playlist)
 			share_link = self.google_create_playlist(post_playlist)
-			self.post_message_in_thread(comment, share_link, type="comment")
+			if self.songs_added_to_current_playlist > config.google_playlist_max_size:
+				self.post_message_in_thread(comment, share_link, type="split_playlist")
+			else:
+				self.post_message_in_thread(comment, share_link, type="comment")
 
 			print ("[/r/{}] Complete!".format(self.current_subreddit))
 		else:
@@ -750,7 +754,10 @@ class SpotPlayBot:
 		post_playlist = self.parse_songs_from_submission(comment.submission)
 		post_playlist = self.remove_repeats(post_playlist)
 		share_link = self.google_create_playlist(post_playlist)
-		self.post_message_in_thread(comment, share_link, type="thread")
+		if self.songs_added_to_current_playlist > config.google_playlist_max_size:
+			self.post_message_in_thread(comment, share_link, type="split_playlist")
+		else:
+			self.post_message_in_thread(comment, share_link, type="thread")
 
 		print ("[/r/{}] Complete".format(self.current_subreddit))
 
@@ -759,7 +766,10 @@ class SpotPlayBot:
 		post_playlist = self.parse_songs_from_comment(comment)
 		post_playlist = self.remove_repeats(post_playlist)
 		share_link = self.google_create_playlist(post_playlist)
-		self.post_message_in_thread(comment, share_link, type="request")
+		if self.songs_added_to_current_playlist > config.google_playlist_max_size:
+			self.post_message_in_thread(comment, share_link, type="split_playlist")
+		else:
+			self.post_message_in_thread(comment, share_link, type="request")
 
 	def get_all_thread_album_links(self, comment):
 		print ("[/r/{}] Converting links from albums in submission".format(self.current_subreddit))
@@ -783,6 +793,7 @@ class SpotPlayBot:
 			self.post_message_in_thread(comment, share_link, type="thread")
 
 	def get_all_thread_album_links_at_link(self, comment):
+		"""
 		share_links = [
 			"https://play.google.com/music/playlist/AMaBXynoo9s39pzqy1sBPsjRr93SujnYvZd4H0ckFw1oc7psGM50KbCG76UAjTG1E_Hdp3VpMz2--hd6HU5e-8_q7mUBHXAnkg==",
 			"https://play.google.com/music/playlist/AMaBXylo2YACjXpPfiFRRbLIRA82PvVsg1GyH8Dv3dzax_Didi1t0LV6mW0QYf62c-zRwowkBlbd1SXofDnpG0nmMWe4u8ruyg==",
@@ -798,9 +809,7 @@ class SpotPlayBot:
 			self.get_all_thread_album_links(reddit_thread)
 
 		except Exception as e:
-			raise
-			#self.post_message_in_thread(comment, config.search_failure_string, type="reddit link error")
-		"""
+			self.post_message_in_thread(comment, config.search_failure_string, type="reddit link error")
 
 	def get_all_thread_track_links_at_link(self, comment):
 		try:
