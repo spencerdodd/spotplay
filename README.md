@@ -41,8 +41,6 @@ linked reddit thread
 
 ## Next Steps
 
-- Implement track fuzzing algo on album fuzzing
-
 - Convert parent comment albums to playlists
 
 - Creation of Spotify Playlists from GPlayMusic and Other Sources
