@@ -41,7 +41,7 @@ linked reddit thread
 
 ## Next Steps
 
-- Integrate playlist splitting when playlists are > 1000 tracks (not allowed by google play music)
+- Implement track fuzzing algo on album fuzzing
 
 - Convert parent comment albums to playlists
 

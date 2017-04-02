@@ -19,11 +19,12 @@ from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOauthError
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 # TODO
-# 1. youtube playlists
-# 2. Convert any link type (youtube, comment, spotify) in all of the contexts
-# 3. all sources 	-------> 		spotify
-# 4. all sources	------->		youtube
-# 5. Convert to desired playlist type in comment cue (youtube, spotify, googleplay)
+# 1. change album fuzzing to use track fuzzing features
+# 2. youtube playlists
+# 3. Convert any link type (youtube, comment, spotify) in all of the contexts
+# 4. all sources 	-------> 		spotify
+# 5. all sources	------->		youtube
+# 6. Convert to desired playlist type in comment cue (youtube, spotify, googleplay)
 
 
 class SpotPlayBot:
@@ -89,8 +90,6 @@ class SpotPlayBot:
 		# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 		self.failures = []
-		# TODO fix error that occurs when you try to upload more than 1000 songs to a playlist.
-		# TODO 		..split it up into multiple playlists
 		self.songs_added_to_current_playlist = 0
 
 
@@ -351,6 +350,10 @@ class SpotPlayBot:
 				print "[/r/{}] adding previously searched songs".format(self.current_subreddit)
 				songs_to_add += list_of_song_objects
 
+			print ("[/r/{}] =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=Failures=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=".format(self.current_subreddit))
+			for idx, fail in enumerate(self.failures):
+				print ("[/r/{}] {}: {} : {}".format(self.current_subreddit, idx, fail.get_search_string(), vars(fail)))
+
 			if len(songs_to_add) == 0:
 				print ("[/r/{}] Playlist empty".format(self.current_subreddit))
 				return config.empty_playlist_link
@@ -366,6 +369,10 @@ class SpotPlayBot:
 						self.google_api.add_songs_to_playlist(new_playlist_id, song.song_id)
 					else:
 						self.failures.append(song)
+
+				# TODO testing shit..need to delete
+				self.google_api.delete_playlist(new_playlist_id)
+				raise Exception
 
 				print ("[/r/{}] Making playlist {} public".format(self.current_subreddit, playlist_title))
 				self.google_api.edit_playlist(new_playlist_id, public=True)
@@ -422,6 +429,125 @@ class SpotPlayBot:
 		else:
 			return config.empty_playlist_link
 
+	def fuzz_track_hits(self, hits, song_to_search):
+		hit_id = config.fuzz_search_failure_string
+		fuzz_rounds = 0
+
+		# cast everything to lowercase
+		song_name = song_to_search.name.lower()
+		song_artist = song_to_search.artist.lower()
+		song_album = song_to_search.album.lower()
+
+		while hit_id == config.fuzz_search_failure_string:
+			for hit in hits:
+				fuzz_rounds = 0
+				while fuzz_rounds < config.max_fuzz_rounds:
+					track = hit["track"]
+					track_name = track["title"].encode('utf-8').lower()
+					track_artist = track["albumArtist"].encode('utf-8').lower()
+					track_album = track["album"].encode('utf-8').lower()
+					track_id = track["storeId"]
+
+					song_name, song_artist, song_album = self.fuzz_track_values(song_name, song_artist, song_album, fuzz_rounds)
+					track_name, track_artist, track_album = self.fuzz_track_values(track_name, track_artist, track_album, fuzz_rounds)
+					print ("[/r/{}] =-=-=-=-=-=- COMPARING -=-=-=-=-=-=".format(self.current_subreddit))
+					print ("[/r/{}] fuzzing track round {}".format(self.current_subreddit, fuzz_rounds))
+					print ("[/r/{}] ({}) - ({}) ({})".format(self.current_subreddit, song_artist, song_name, song_album))
+					print ("[/r/{}] ({}) - ({}) ({})".format(self.current_subreddit, track_artist, track_name, track_album))
+					if song_name == track_name and song_artist == track_artist and song_album == track_album:
+						hit_id = track_id
+
+					fuzz_rounds += 1
+
+			break
+
+		# trackId on success
+		# config.fuzz_search_failure_string on failure
+		return hit_id
+
+	def fuzz_track_values(self, song_name, song_artist, song_album, fuzz_rounds):
+		fuzzed_song_name = song_name
+		fuzzed_song_artist = song_artist
+		fuzzed_song_album = song_album
+
+		if fuzz_rounds == 0:
+			return song_name, song_artist, song_album
+		elif fuzz_rounds == 1:
+			# apply previous fuzzing
+			for x in range(0, fuzz_rounds - 1):
+				fuzzed_song_name, fuzzed_song_artist, fuzzed_song_album = self.fuzz_track_values(
+					fuzzed_song_name, fuzzed_song_artist, fuzzed_song_album, x)
+			# Remixes with weird formatting
+			# in: 	sway - chainsmokers remix
+			# out: 	sway chainsmokers remix
+			if " - " in fuzzed_song_name:
+				fuzzed_song_name = fuzzed_song_name.replace(" - ", " ")
+		elif fuzz_rounds == 2:
+			# apply previous fuzzing
+			for x in range(0, fuzz_rounds - 1):
+				fuzzed_song_name, fuzzed_song_artist, fuzzed_song_album = self.fuzz_track_values(
+					fuzzed_song_name, fuzzed_song_artist, fuzzed_song_album, x)
+			# Remixes with normal formatting
+			# in: sway (chainsmokers remix)
+			# out: sway chainsmokers remix
+			if "remix)" in fuzzed_song_name or "edit)" in fuzzed_song_name:
+				fuzzed_song_name = fuzzed_song_name.replace("(", "")
+				fuzzed_song_name = fuzzed_song_name.replace(")", "")
+		elif fuzz_rounds == 3:
+			# apply previous fuzzing
+			for x in range(0, fuzz_rounds - 1):
+				fuzzed_song_name, fuzzed_song_artist, fuzzed_song_album = self.fuzz_track_values(
+					fuzzed_song_name, fuzzed_song_artist, fuzzed_song_album, x)
+			# Remove features
+			# in: divinity (feat. xxx)
+			# out: divinity
+			if "(feat" in fuzzed_song_name:
+				fuzzed_song_name = fuzzed_song_name.split("(feat")[0]
+		elif fuzz_rounds == 4:
+			# apply previous fuzzing
+			for x in range(0, fuzz_rounds - 1):
+				fuzzed_song_name, fuzzed_song_artist, fuzzed_song_album = self.fuzz_track_values(
+					fuzzed_song_name, fuzzed_song_artist, fuzzed_song_album, x)
+			# Remove weird [stuff]
+			if "[" in fuzzed_song_name:
+				fuzzed_song_name = fuzzed_song_name.split("[")[0]
+		elif fuzz_rounds == 5:
+			# apply previous fuzzing
+			for x in range(0, fuzz_rounds - 1):
+				fuzzed_song_name, fuzzed_song_artist, fuzzed_song_album = self.fuzz_track_values(
+					fuzzed_song_name, fuzzed_song_artist, fuzzed_song_album, x)
+			# Remove album name
+			fuzzed_song_album = ""
+		elif fuzz_rounds == 6:
+			# apply previous fuzzing
+			for x in range(0, fuzz_rounds - 1):
+				fuzzed_song_name, fuzzed_song_artist, fuzzed_song_album = self.fuzz_track_values(
+					fuzzed_song_name, fuzzed_song_artist, fuzzed_song_album, x)
+			# Remove features in artist name
+			if "feat" in fuzzed_song_artist:
+				fuzzed_song_artist = fuzzed_song_artist.split("(feat")[0]
+		elif fuzz_rounds == 7:
+			# apply previous fuzzing
+			for x in range(0, fuzz_rounds - 1):
+				fuzzed_song_name, fuzzed_song_artist, fuzzed_song_album = self.fuzz_track_values(
+					fuzzed_song_name, fuzzed_song_artist, fuzzed_song_album, x)
+			# Multiple artists in name, remove delimiters
+			if "&" in fuzzed_song_artist:
+				fuzzed_song_artist = fuzzed_song_artist.split("&")[0]
+
+		else:
+			# apply previous fuzzing
+			for x in range(0, 7):
+				fuzzed_song_name, fuzzed_song_artist, fuzzed_song_album = self.fuzz_track_values(
+					fuzzed_song_name, fuzzed_song_artist, fuzzed_song_album, x)
+			print ("[/r/{}] maximum fuzzing achieved".format(self.current_subreddit))
+
+		return fuzzed_song_name.strip(), fuzzed_song_artist.strip(), fuzzed_song_album.strip()
+
+	# TODO
+	def fuzz_album_hits(self, hits, album_to_search):
+		pass
+
 	def get_id_from_search(self, song_to_search, search_type="song"):
 		if search_type == "song":
 			print ("[/r/{}] Searching for song".format(self.current_subreddit))
@@ -431,80 +557,16 @@ class SpotPlayBot:
 				print ("found {} in gplay (1 hit)".format(song_to_search.get_search_string()))
 				return hits[0]["track"]["storeId"]
 			elif len(hits) > 1:
-				best_hit_id = None
-				current_name = song_to_search.name
-				current_artist = song_to_search.artist
+				print ("[/r/{}] Fuzzed-searching for {}".format(self.current_subreddit, song_to_search.get_search_string()))
 
-				while best_hit_id is None:
-					print ("[/r/{}] Fuzzed-searching for {} {}".format(self.current_subreddit, current_artist, current_name))
-					for track in hits:
-						track_artist = track["track"]["albumArtist"].encode('utf-8')
-						track_name = track["track"]["title"].encode('utf-8')
-						track_album = track["track"]["album"].encode('utf-8')
-						print ("[/r/{}] =-=-=-=-=-=- COMPARING -=-=-=-=-=-=".format(self.current_subreddit))
-						print ("[/r/{}] {} - {} from {}".format(self.current_subreddit, current_artist, current_name, song_to_search.album))
-						print ("[/r/{}] {} - {} from {}".format(self.current_subreddit, track_artist, track_name,
-														track_album))
-						if current_artist == track_artist and \
-							current_name == track_name:
-							print ("{} in {}".format(song_to_search.get_search_string(), track["track"]))
-							best_hit_id = track["track"]["storeId"]
-							print ("Found @ {}".format(best_hit_id))
-							return best_hit_id
+				best_hit_id = self.fuzz_track_hits(hits, song_to_search)
 
-					# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-					# Start fuzzing the input
-					# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-					current_name = current_name.split("(feat.")[0].strip() 				# remove remixes / features from song
-					for track in hits:
-						track_artist = track["track"]["albumArtist"].encode('utf-8')
-						track_name = track["track"]["title"].split("(feat.")[0].strip().encode('utf-8')
-						print ("[/r/{}] =-=-=-=-=-=- COMPARING -=-=-=-=-=-=".format(self.current_subreddit))
-						print ("[/r/{}] {} - {} from {}".format(self.current_subreddit, current_artist, current_name,
-																song_to_search.album))
-						print ("[/r/{}] {} - {} from {}".format(self.current_subreddit, track_artist, track_name,
-																track_album))
-						if current_artist == track_artist and \
-							current_name == track_name:
-							best_hit_id = track["track"]["storeId"]
-							print ("Found @ {}".format(best_hit_id))
-							return best_hit_id
-
-					for track in hits:
-						track_artist = track["track"]["albumArtist"].encode('utf-8')
-						track_name = track["track"]["title"].split("(feat.")[0].strip().encode('utf-8')
-						print ("[/r/{}] =-=-=-=-=-=- COMPARING -=-=-=-=-=-=".format(self.current_subreddit))
-						print ("[/r/{}] {} - {} from {}".format(self.current_subreddit, current_artist, current_name,
-																song_to_search.album))
-						print ("[/r/{}] {} - {} from {}".format(self.current_subreddit, track_artist, track_name,
-																track_album))
-						if current_artist == track_artist and \
-							current_name in track_name:
-							best_hit_id = track["track"]["storeId"]
-							print ("Found @ {}".format(best_hit_id))
-							return best_hit_id
-
-					# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-					# Last try...switch artist and title
-					# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-					for track in hits:
-						track_artist = track["track"]["albumArtist"].encode('utf-8')
-						track_name = track["track"]["title"].split("(feat.")[0].strip().encode('utf-8')
-						print ("[/r/{}] =-=-=-=-=-=- COMPARING -=-=-=-=-=-=".format(self.current_subreddit))
-						print ("[/r/{}] {} - {} from {}".format(self.current_subreddit, current_artist, current_name,
-																song_to_search.album))
-						print ("[/r/{}] {} - {} from {}".format(self.current_subreddit, track_artist, track_name,
-																track_album))
-						if current_artist in track_name and \
-							current_name in track_artist:
-							best_hit_id = track["track"]["storeId"]
-							print ("Found @ {}".format(best_hit_id))
-							return best_hit_id
-
-					return config.search_failure_string
-
-				return best_hit_id
+				if best_hit_id == config.fuzz_search_failure_string:
+					self.failures.append(song_to_search)
+					best_hit_id = config.search_failure_string
+					return best_hit_id
+				else:
+					return best_hit_id
 
 			else:
 				return config.search_failure_string
@@ -914,10 +976,21 @@ class SpotPlayBot:
 		print (self.get_youtube_playlist_id_from_url(link2))
 		print (self.songs_from_link(link2))
 		
-		divinity = Song("Divinity", "Porter Robinson")
-		song_id = self.get_id_from_search(divinity, type="song")
-		track = self.google_api.get_track_info(song_id)
-		print ("{} - {} from {}".format(track["albumArtist"], track["title"], track["album"]))
+
+		songs_to_find = [
+			#Song("Places", "Martin Solveig"),
+			#Song("Fire", "3LAU"),
+			#Song("Sway - Chainsmokers Remix", "Anna Of The North"),
+			#Song("Divinity", "Porter Robinson"),
+			Song("Faded", "ZHU")
+		]
+		for song in songs_to_find:
+			song_id = self.get_id_from_search(song, search_type="song")
+			track = self.google_api.get_track_info(song_id)
+			print ("{} - {} from {}".format(
+				track["albumArtist"].encode('utf-8'),
+				track["title"].encode('utf-8'),
+				track["album"].encode('utf-8')))
 		"""
 		failed = False
 
