@@ -188,9 +188,9 @@ class SpotPlayBot:
 
 					for item in playlist["items"]:
 						song = item["track"]
-						song_name = song["name"]
-						song_artist = song["artists"][0]["name"]
-						song_album = song["album"]["name"]
+						song_name = song["name"].encode("utf-8")
+						song_artist = song["artists"][0]["name"].encode("utf-8")
+						song_album = song["album"]["name"].encode("utf-8")
 						scraped_song = Song(song_name, song_artist, album=song_album)
 						songs_by_name["songs"].append(scraped_song)
 
@@ -200,20 +200,20 @@ class SpotPlayBot:
 					print ("[/r/{}] Scraping album at: {}".format(self.current_subreddit, url_to_scrape))
 					album_id = url_to_scrape.split("album/")[1]
 					album = self.spotify_api.album(album_id)
-					album_name = album["name"]
-					raw_artists = album["artists"]
+					album_name = album["name"].encode("utf-8")
+					raw_artists = album["artists"].encode("utf-8")
 					album_artists = []
 					for artist in raw_artists:
-						artist_name = artist["name"]
+						artist_name = artist["name"].encode("utf-8")
 						album_artists.append(artist_name)
 					songs_by_name = {
 						"type": "album",
 						"songs": []
 					}
 
-					for track in album["tracks"]["items"]:
-						track_name = track["name"]
-						track_artists = album_artists[0]
+					for track in album["tracks"]["items"].encode("utf-8"):
+						track_name = track["name"].encode("utf-8")
+						track_artists = album_artists[0].encode("utf-8")
 
 						scraped_song = Song(track_name, track_artists, album=album_name)
 						songs_by_name["songs"].append(scraped_song)
@@ -227,9 +227,9 @@ class SpotPlayBot:
 					print ("[/r/{}] Scraping song at: {}".format(self.current_subreddit, url_to_scrape))
 					track_id = url_to_scrape.split("track/")[1]
 					track = self.spotify_api.track(track_id)
-					track_name = track["name"]
-					track_artists = track["artists"][0]["name"]
-					track_album = track["album"]["name"]
+					track_name = track["name"].encode("utf-8")
+					track_artists = track["artists"][0]["name"].encode("utf-8")
+					track_album = track["album"]["name"].encode("utf-8")
 					songs_by_name = {
 						"type": "track",
 						"songs": []
@@ -248,7 +248,14 @@ class SpotPlayBot:
 				# https://www.youtube.com/playlist?list=PLfdkz2eiSC3a581dIX0xoQmu9te09n5ka
 				if "playlist" in url_to_scrape:
 					print ("[/r/{}] Scraping playlist at: {}".format(self.current_subreddit, url_to_scrape))
-					playlist_id = url_to_scrape.split("list=")[1]
+					playlist_id = self.get_youtube_playlist_id_from_url(url_to_scrape)
+					print ("[/r/{}] Getting playlist {}".format(self.current_subreddit, playlist_id))
+					# TODO failure in youtube api when given the playlist id PLAE1AB5BC1573A800
+					# -- converts into https://www.googleapis.com/youtube/v3/playlistItems?alt=json&part=snippet&playlistId=PLAE1AB5BC1573A800%29&key=AIzaSyA9TZ86ZBtb1ZAyk65T40hQWWv-UWfB4lk&maxResults=50
+					# -- it should be  https://www.googleapis.com/youtube/v3/playlistItems?alt=json&part=snippet&playlistId=PLAE1AB5BC1573A800&key=AIzaSyA9TZ86ZBtb1ZAyk65T40hQWWv-UWfB4lk&maxResults=50
+					# -- character %29 (or ')') is added onto the end of the playlistId param
+					# -- works perfectly without the character
+					# # https://www.youtube.com/playlist?list=PLAE1AB5BC1573A800
 					playlist = self.youtube_api.playlistItems().list(
 						part="snippet",
 						playlistId=playlist_id,
@@ -260,7 +267,7 @@ class SpotPlayBot:
 					}
 
 					for track in playlist["items"]:
-						video_title = track["snippet"]["title"]
+						video_title = track["snippet"]["title"].encode("utf-8")
 						split_title = video_title.split("-")
 						if len(split_title) == 1:
 							if len(split_title[0]) > 0:
@@ -290,7 +297,7 @@ class SpotPlayBot:
 						"type": "playlist",
 						"songs": []
 					}
-					video_title = video_info["items"][0]["snippet"]["title"]
+					video_title = video_info["items"][0]["snippet"]["title"].encode("utf-8")
 					split_title = video_title.split("-")
 					if len(split_title) == 1:
 						if len(split_title[0]) > 0:
@@ -309,6 +316,18 @@ class SpotPlayBot:
 				return {"type": "playlist", "songs": []}
 		else:
 			return {"type": "playlist", "songs": []}
+
+	# https://www.youtube.com/playlist?list=PLfdkz2eiSC3a581dIX0xoQmu9te09n5ka
+	# https://www.youtube.com/playlist?list=PLAE1AB5BC1573A800
+	def get_youtube_playlist_id_from_url(self, url_to_scrape):
+		end_of_url = url_to_scrape.split("list=")[1]
+		if end_of_url.isalnum():
+			return end_of_url
+		else:
+			while not end_of_url.isalnum:
+				end_of_url = end_of_url[:-1]
+
+		return end_of_url
 
 	def google_create_playlist(self, list_of_song_objects, input_type="unsearched_songs"):
 		print ("[/r/{}] Processing {} songs".format(self.current_subreddit, len(list_of_song_objects)))
@@ -532,6 +551,10 @@ class SpotPlayBot:
 							best_hit_id = album["album"]["albumId"]
 							print ("Found @ {}".format(best_hit_id))
 							return best_hit_id
+
+					# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+					# Think about formatting (Artist - Title - xxx Remix)
+					# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 					# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 					# Last try...switch artist and title
@@ -877,6 +900,14 @@ class SpotPlayBot:
 
 	def run(self):
 		"""
+		link1 = "https://www.youtube.com/playlist?list=PLfdkz2eiSC3a581dIX0xoQmu9te09n5ka"
+		link2 = "https://www.youtube.com/playlist?list=PLAE1AB5BC1573A800"
+
+		print (self.get_youtube_playlist_id_from_url(link1))
+		print (self.songs_from_link(link1))
+		print (self.get_youtube_playlist_id_from_url(link2))
+		print (self.songs_from_link(link2))
+		
 		divinity = Song("Divinity", "Porter Robinson")
 		song_id = self.get_id_from_search(divinity, type="song")
 		track = self.google_api.get_track_info(song_id)
