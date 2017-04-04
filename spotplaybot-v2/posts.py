@@ -29,4 +29,3 @@ class Comment:
         self.thread_url = None
         self.linked_url = None
         self.playlist = None
-
