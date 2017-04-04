@@ -1,4 +1,4 @@
-from kitchen.text.converters import to_unicode
+
 
 class Song:
 	def __init__(self, name, artist, album=""):
