@@ -23,6 +23,12 @@ class Song:
     def from_youtube_hit(self, hit):
         pass
 
+    def from_text_link(self, text_link):
+        split_link = text_link.split("-")
+        self.title = split_link[1].strip()
+        self.artists = split_link[0].strip()
+        self.album = ""
+
 """
 The Album class is used to manipulate album data
 """
