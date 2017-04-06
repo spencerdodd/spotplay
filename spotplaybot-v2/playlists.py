@@ -2,6 +2,10 @@
 The Playlist class is the super-class of it's respective Google Play Music, Spotify, and Youtube sub-classes. It
 is the end result of link-aggregation and scraping. It can also be a starting point if instantiated from a URL during
 scraping. 
+
+The multithreading code is breaking our objects and the SSL connections to the APIs...
+Let's try this:
+	http://stackoverflow.com/a/20722204
 """
 # External Libs
 import config
@@ -125,15 +129,19 @@ class GooglePlayMusicPlaylist(Playlist):
 
 	def add_songs_to_playlist(self, songs_to_add):
 		self.songs_to_add += songs_to_add
-		self.__timed_process(self.__add_songs_to_playlist)
+		self.__add_songs_to_playlist
+		#self.__timed_process(self.__add_songs_to_playlist)
 
 	def create_playlist(self):
 		print (vars(self))
-		self.__timed_process(self.__create_playlist)
+		self.playlist_id = self.gplay_api.create_playlist(self.name)
+		#self.__timed_process(self.__create_playlist)
 		print (vars(self))
 
 	def delete_playlist(self):
-		self.__timed_process(self.__delete_playlist)
+		self.gplay_api.delete_playlist(self.playlist_id)
+
+		#self.__timed_process(self.__delete_playlist)
 
 	def publish_playlist(self):
 		self.__timed_process(self.__publish_playlist)
