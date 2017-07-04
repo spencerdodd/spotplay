@@ -1041,16 +1041,3 @@ def main():
 
 if __name__ == "__main__":
 	main()
-
-"""
-[/r/spotplaybot] =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=Failures=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-[/r/spotplaybot] 0: Wurlitzer The Lushlife Project : {'album': 'Budapest Eskimos', 'song_id': 'search failure...could not locate song', 'name': 'Wurlitzer', 'artist': 'The Lushlife Project'}
-[/r/spotplaybot] 1: Lifespan - Instrumental Vaults : {'album': 'Lifespan', 'song_id': 'search failure...could not locate song', 'name': 'Lifespan - Instrumental', 'artist': 'Vaults'}
-[/r/spotplaybot] 2: Fleur Blanche Orsten : {'album': 'Cutworks', 'song_id': 'search failure...could not locate song', 'name': 'Fleur Blanche', 'artist': 'Orsten'}
-[/r/spotplaybot] 3: Marbles & Drains TM Juke : {'album': 'Renommee Recommends...', 'song_id': 'search failure...could not locate song', 'name': 'Marbles & Drains', 'artist': 'TM Juke'}
-[/r/spotplaybot] 4: Body Language - Interpretation Booka Shade : {'album': 'Movements', 'song_id': 'search failure...could not locate song', 'name': 'Body Language - Interpretation', 'artist': 'Booka Shade'}
-[/r/spotplaybot] 5: Mr. Handagote Tomáš Dvořák : {'album': 'Machinarium Soundtrack', 'song_id': 'search failure...could not locate song', 'name': 'Mr. Handagote', 'artist': 'Tom\xc3\xa1\xc5\xa1 Dvo\xc5\x99\xc3\xa1k'}
-[/r/spotplaybot] 6: Adagio Sostenuto Orsten : {'album': 'Cutworks', 'song_id': 'search failure...could not locate song', 'name': 'Adagio Sostenuto', 'artist': 'Orsten'}
-[/r/spotplaybot] 7: Nitro - R.I.P. Nujabes Mix AGQ : {'album': 'Tribute To Jun 2 (Nujabes Tribute)', 'song_id': 'search failure...could not locate song', 'name': 'Nitro - R.I.P. Nujabes Mix', 'artist': 'AGQ'}
-
-"""

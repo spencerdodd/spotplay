@@ -1,3 +1,5 @@
+from gmusicapi import Mobileclient
+
 # Reddit configs
 subreddits = [
 	"spotplaybot",
@@ -16,6 +18,9 @@ spotify_client_secret = ""
 # gmusicapi configs
 google_email = ""
 google_password = ""
+google_playlist_max_size = 1000
+google_device_id = Mobileclient.FROM_MAC_ADDRESS
+
 
 # twilio configs
 twilio_account_sid = ""
