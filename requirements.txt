@@ -1,0 +1,4 @@
+gmusicapi==10.1.2
+google-api-python-client==1.6.2
+praw==5.0.0
+spotipy==2.4.4

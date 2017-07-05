@@ -9,6 +9,25 @@ The bot also has functionality that can be triggered by comments that contain th
 
 ## Requirements
 
+Spotify account
+Google Play music account
+Google account (^ can be same)
+Reddit account
+
+## Installation
+```
+git clone https://github.com/spencerdodd/spotplaybot
+cd spotplaybot
+pip install -r requirements.txt
+...
+[replace config.py with your data]
+...
+cd spotplaybot
+python bot.py
+```
+
+## Libraries
+
 - [spotipy](https://github.com/plamere/spotipy) for Spotify API interaction
 - [gmusicapi](https://github.com/simon-weber/gmusicapi) as an unofficial Google Play Music API
 - twilio for status updates via SMS
