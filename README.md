@@ -10,8 +10,11 @@ The bot also has functionality that can be triggered by comments that contain th
 ## Requirements
 
 Spotify account
+
 Google Play music account
+
 Google account (^ can be same)
+
 Reddit account
 
 ## Installation
@@ -19,10 +22,11 @@ Reddit account
 git clone https://github.com/spencerdodd/spotplaybot
 cd spotplaybot
 pip install -r requirements.txt
+cd spotplaybot
 ...
 [replace config.py with your data]
 ...
-cd spotplaybot
+mv example_config.py config.py
 python bot.py
 ```
 
