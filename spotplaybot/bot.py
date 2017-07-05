@@ -199,7 +199,7 @@ class SpotPlayBot:
 					album_id = url_to_scrape.split("album/")[1]
 					album = self.spotify_api.album(album_id)
 					album_name = album["name"].encode("utf-8")
-					raw_artists = album["artists"].encode("utf-8")
+					raw_artists = album["artists"]
 					album_artists = []
 					for artist in raw_artists:
 						artist_name = artist["name"].encode("utf-8")
@@ -209,7 +209,7 @@ class SpotPlayBot:
 						"songs": []
 					}
 
-					for track in album["tracks"]["items"].encode("utf-8"):
+					for track in album["tracks"]["items"]:
 						track_name = track["name"].encode("utf-8")
 						track_artists = album_artists[0].encode("utf-8")
 
@@ -238,7 +238,7 @@ class SpotPlayBot:
 					return songs_by_name
 
 			except Exception as e:
-				print ("[/r/{}] Something is wrong with the link given: {}".format(self.current_subreddit, url_to_scrape))
+				print ("[/r/{}] Something is wrong with the link given: {}\n\t{}".format(self.current_subreddit, url_to_scrape, traceback.format_exc(e)))
 				return {"type": "playlist", "songs": []}
 
 		elif "youtube" in url_to_scrape:
